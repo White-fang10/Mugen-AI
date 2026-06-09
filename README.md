@@ -1,12 +1,12 @@
 <div align="center">
 
 ```
-███╗   ███╗██╗   ██╗ ██████╗ ███████╗███╗   ██╗     █████╗ ██╗
-████╗ ████║██║   ██║██╔════╝ ██╔════╝████╗  ██║    ██╔══██╗██║
-██╔████╔██║██║   ██║██║  ███╗█████╗  ██╔██╗ ██║    ███████║██║
-██║╚██╔╝██║██║   ██║██║   ██║██╔══╝  ██║╚██╗██║    ██╔══██║██║
-██║ ╚═╝ ██║╚██████╔╝╚██████╔╝███████╗██║ ╚████║    ██║  ██║██║
-╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
+     ███╗   ███╗██╗   ██╗ ██████╗ ███████╗███╗   ██╗     █████╗ ██╗
+     ████╗ ████║██║   ██║██╔════╝ ██╔════╝████╗  ██║    ██╔══██╗██║
+     ██╔████╔██║██║   ██║██║  ███╗█████╗  ██╔██╗ ██║    ███████║██║
+     ██║╚██╔╝██║██║   ██║██║   ██║██╔══╝  ██║╚██╗██║    ██╔══██║██║
+     ██║ ╚═╝ ██║╚██████╔╝╚██████╔╝███████╗██║ ╚████║    ██║  ██║██║
+     ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
 ```
 
 **Autonomous · Policy-Aware · Adversarially Hardened**
@@ -24,12 +24,24 @@
 
 <br>
 
+</div>
+
 ---
 
-## 🆚 Why MUGEN AI
+## 🏗️ System Architecture
 
-| | Typical Asset Bot | MUGEN AI |
-|:---:|:---:|:---:|
+<div align="center">
+
+![MUGEN AI Enhanced Architecture](../enhanced_asset_bot_architecture.svg)
+
+</div>
+
+---
+
+## 🆚 Why MUGEN AI?
+
+| | Typical Asset Bot | **MUGEN AI** |
+|:---|:---:|:---:|
 | **Input** | Static dropdowns | Free-text NLP + typo correction |
 | **Policy** | Hardcoded rules | Live RAG from company PDFs |
 | **Decision** | Rule engine | LLaMA 3.3-70B + HRIS + Catalogue |
@@ -42,20 +54,18 @@
 
 ## 🏛️ Four-Layer Intelligence Stack
 
-</div>
-
 <div align="center">
 <pre>
           ┌──────────────────────────────────────┐
-          │         TELEGRAM USER MESSAGE         │
+          │         TELEGRAM USER MESSAGE        │
           └─────────────────┬────────────────────┘
                             │
-          ╔═════════════════▼════════════════════╗
+          ╔═════════════════▼═════════════════════╗
           ║        LAYER 1 · SUSPICION SCORER     ║
           ║              group -999               ║
           ║                                       ║
           ║  Regex Blacklist ·········· 30 %      ║
-          ║  Injection Probes ·········· 25 %      ║
+          ║  Injection Probes ·········· 25 %     ║
           ║  Entropy Anomaly ·········· 15 %      ║
           ║  Unicode Obfuscation ······ 15 %      ║
           ║  Rate Abuse Window ········ 15 %      ║
@@ -65,16 +75,16 @@
                          │           ▼
                          │    ⛔ QUARANTINE + DB log
           ╔══════════════▼════════════════════════╗
-          ║         LAYER 2 · NLP FRONT-END        ║
+          ║         LAYER 2 · NLP FRONT-END       ║
           ║                                       ║
           ║  "macbok" ──────────► MacBook Pro     ║
           ║  "ASAP"   ──────────► HIGH urgency    ║
           ║  confidence < 0.70 ─► re-ask user     ║
-          ║  injection_risk=high ► 🔒 FREEZE       ║
+          ║  injection_risk=high ► 🔒 FREEZE      ║
           ╚══════════════╤════════════════════════╝
                          │
           ╔══════════════▼════════════════════════╗
-          ║         LAYER 3 · RAG PIPELINE         ║
+          ║         LAYER 3 · RAG PIPELINE        ║
           ║                                       ║
           ║  PDF ─► chunk 400/60 ─► MiniLM-L6-v2  ║
           ║  SHA-256 dedup · idempotent upsert    ║
@@ -82,53 +92,45 @@
           ╚══════════════╤════════════════════════╝
                          │
           ╔══════════════▼════════════════════════╗
-          ║         LAYER 4 · DECISION ENGINE      ║
+          ║         LAYER 4 · DECISION ENGINE     ║
           ║                                       ║
           ║  HRIS ──┐                             ║
-          ║  Slots ─┤─► LLaMA 3.3-70B via Groq   ║
+          ║  Slots ─┤─► LLaMA 3.3-70B via Groq    ║
           ║  RAG ───┤                             ║
           ║  Catalogue ──► approved / flagged /   ║
-          ║                rejected + alt suggest  ║
-          ╚══════════════════════════════════════╝
+          ║                rejected + alt suggest ║
+          ╚═══════════════════════════════════════╝
 </pre>
 </div>
 
-<br>
-
 ---
-
-<div align="center">
 
 ## 🧠 NLP Layer — Slot Extraction
 
 **Each slot gets its own dedicated LLM call with a precision-engineered prompt.**
 
-<br>
-
-| Slot | User said | Extracted | Corrected | Confidence | Risk |
+| Slot | User Said | Extracted | Corrected | Confidence | Risk |
 |:---:|:---:|:---:|:---:|:---:|:---:|
 | `asset_name` | "macbok pro" | `MacBook Pro` | ✏️ yes | 0.85 | none |
 | `urgency` | "kinda urgent" | `HIGH` | — | 0.72 | none |
 | `cost_estimate` | "2 grand" | `2000.0` | — | 0.91 | none |
 
-<br>
-
 | Confidence | Action |
-|:---:|:---:|
+|:---:|:---|
 | `≥ 0.70` | ✅ Slot accepted |
 | `0.40 – 0.69` | 🔍 Re-ask with contextual hint |
 | `< 0.40` | ❓ Re-ask with original prompt (max 3 retries) |
 | `injection_risk: high` | 🔒 Session permanently frozen |
 
+<<<<<<< HEAD
 </div>
 
 ---     
+=======
+---
+>>>>>>> 1eb81a2 (Update: sync local changes)
 
-<div align="center">
-
-## 🗂️ Stage 3 · RAG Ingestion Pipeline
-
-</div>
+## 🗂️ RAG Ingestion Pipeline
 
 <div align="center">
 <pre>
@@ -163,27 +165,20 @@
    │  Deterministic IDs → idempotent re-ingest    │
    └──────────────────────────────────────────────┘
 </pre>
-
-<br>
+</div>
 
 | Grade | Cosine Distance | Weight in Decision |
-|:---:|:---:|:---:|
+|:---:|:---:|:---|
 | **A** | ≤ 0.35 | Cited directly |
 | **B** | ≤ 0.50 | Cited with confidence |
 | **C** | ≤ 0.65 | Used as weak signal |
 | **D** | > 0.65 | Flagged as low-relevance |
 
-</div>
-
 ---
 
-<div align="center">
-
-## ⚖️ Stage 4 · Decision Engine
+## ⚖️ Decision Engine
 
 **The LLM receives five structured context blocks in every decision call.**
-
-</div>
 
 <div align="center">
 <pre>
@@ -212,46 +207,32 @@
             ┌───────────┴────────────┐
             ▼           ▼            ▼
        approved      flagged      rejected
-            │           │            │
-            └─────────── ────────────┘
-                        │
-              + reason  ( rulebook citation )
-              + suggested_alternative  ( if needed )
-              + policy_refs  ( source + page )
-              + confidence  0.0 – 1.0
 </pre>
-
-<br>
+</div>
 
 | Status | Condition |
-|:---:|:---:|
+|:---:|:---|
 | `approved` | In-budget, in-stock, grade-eligible, policy-compliant |
 | `flagged` | Near-budget, needs manager sign-off, or ambiguous policy |
 | `rejected` | Over hard limit, grade below minimum, or prohibited item |
 
-</div>
-
 ---
 
-<div align="center">
-
-## 💬 Full Request Walkthrough
-
-</div>
+## 💬 Request Walkthrough
 
 ```
 User  →  /request
  Bot  →  🖥️ What asset do you need?
 
 User  →  "macbok pro 14 for video editing, its urgent"
- Bot  →  ✏️ (interpreted as: MacBook Pro 14)
+ Bot  →  ✏️ Interpreted as: MacBook Pro 14
          📝 Why do you need this asset?
 
 User  →  "post-production for the new marketing campaign"
- Bot  →  ⏱️ How urgent?
+ Bot  →  ⏱️ How urgent is this?
 
 User  →  "kinda urgent"
- Bot  →  🔍 (Confidence: 72%) — Please reply HIGH, NORMAL, or LOW.
+ Bot  →  🔍 Confidence 72% — Please reply HIGH, NORMAL, or LOW.
 
 User  →  HIGH
  Bot  →  💰 Approximate cost in USD?
@@ -259,9 +240,9 @@ User  →  HIGH
 User  →  "around 2k"
  Bot  →  📋 Request Summary
          Asset      MacBook Pro 14
-         Reason     post-production for marketing campaign
-         Urgency    HIGH   Cost  $2,000
-         ───────────────────────────────
+         Reason     Post-production for marketing campaign
+         Urgency    HIGH   ·   Cost  $2,000
+         ───────────────────────────────────
          Reply Yes to submit · No to restart
 
 User  →  yes
@@ -284,11 +265,7 @@ User  →  yes
 
 ---
 
-<div align="center">
-
 ## 📁 Project Structure
-
-</div>
 
 ```
 sd05-asset-request-bot/
@@ -321,6 +298,11 @@ sd05-asset-request-bot/
 │       ├── schema.py              SQLite WAL schema (4 tables)
 │       └── repository.py          Async aiosqlite data access
 │
+├── admin_panel/
+│   ├── api.py                     FastAPI admin REST endpoints
+│   └── static/
+│       └── index.html             Admin dashboard UI
+│
 ├── data/
 │   ├── hris.json                  Mock employee roster (role · budget · tenure)
 │   ├── asset_policy.json          Cost caps · category rules · prohibited items
@@ -336,11 +318,7 @@ sd05-asset-request-bot/
 
 ---
 
-<div align="center">
-
 ## 🚀 Quick Start
-
-</div>
 
 **1 · Clone & configure**
 
@@ -350,14 +328,22 @@ cp .env.example .env
 # Edit .env: BOT_TOKEN, GROQ_API_KEY, ADMIN_USER_IDS
 ```
 
-**2 · Run locally**
+**2 · Install & run locally**
 
 ```bash
 pip install -r requirements.txt
 python -m bot.main
 ```
 
-**3 · Docker (production)**
+**3 · Access the Admin Dashboard**
+
+```
+http://localhost:8080
+```
+
+Use the **🔑 API Keys** tab to configure your Telegram Bot Token and Groq API Key directly from the browser.
+
+**4 · Docker (production)**
 
 ```bash
 docker build -t mugen-ai .
@@ -368,20 +354,20 @@ docker run -d --env-file .env \
   mugen-ai
 ```
 
-**4 · Index your first policy rulebook**
+**5 · Index your first policy rulebook**
 
 ```
 /upload_rulebook  →  send your company policy PDF
 ```
 
----
+Or use the **📚 Rulebook Manager** tab in the admin dashboard.
 
-<div align="center">
+---
 
 ## 🛡️ Security Reference
 
 | Signal | Weight | Detects |
-|:---:|:---:|:---|
+|:---|:---:|:---|
 | Regex blacklist | 30% | 20 jailbreak / injection / exfil patterns |
 | Injection probes | 25% | System-prompt manipulation, role spoofing |
 | Entropy anomaly | 15% | Base64 / compressed payloads |
@@ -389,37 +375,53 @@ docker run -d --env-file .env \
 | Rate abuse | 15% | Burst flooding > 12 msg / min |
 | Groq LLM judge | 40% blend | Grey-zone arbitration (score 0.28–0.72 only) |
 
-<br>
+---
 
 ## ⚙️ Configuration
 
 | Variable | Default | Purpose |
-|:---:|:---:|:---:|
-| `BOT_TOKEN` | required | From @BotFather |
-| `GROQ_API_KEY` | required | From console.groq.com |
-| `ADMIN_USER_IDS` | required | Comma-separated Telegram user IDs |
-| `SUSPICION_THRESHOLD` | `0.55` | Quarantine threshold |
+|:---|:---:|:---|
+| `BOT_TOKEN` | **required** | From @BotFather |
+| `GROQ_API_KEY` | **required** | From console.groq.com |
+| `ADMIN_USER_IDS` | **required** | Comma-separated Telegram user IDs |
+| `SUSPICION_THRESHOLD` | `0.55` | Quarantine threshold (0.0–1.0) |
+| `RAG_TOP_K` | `4` | Chunks returned per policy query |
 | `CHROMA_PERSIST_DIR` | `./chroma_store` | Vector DB path |
 | `RULEBOOKS_DIR` | `./rulebooks` | PDF upload directory |
 | `DB_PATH` | `./data/mugen.db` | SQLite path |
 | `LOG_LEVEL` | `INFO` | DEBUG · INFO · WARNING · ERROR |
 
-<br>
+> **Tip:** Use the **🔑 API Keys** tab in the admin dashboard to update `BOT_TOKEN` and `GROQ_API_KEY` without manually editing `.env`.
+
+---
 
 ## 🗺️ Roadmap
 
 | Stage | Status | Description |
-|:---:|:---:|:---:|
-| 1 | ✅ | Foundation · 6-signal suspicion scorer · middleware |
-| 2 | ✅ | NLP extractor · confidence gating · ConversationHandler · injection freeze |
-| 3 | ✅ | PDF RAG pipeline · A–D grading · graded decision context |
-| 4 | ✅ | HRIS integration · product catalogue · suggested alternatives |
-| 5 | 🔲 | Admin dashboard · `/admin_pending` · adjudication commands |
-| 6 | 🔲 | Webhook mode · Redis rate limiter · Prometheus metrics |
-
-<br>
+|:---:|:---:|:---|
+| 1 | ✅ Done | Foundation · 6-signal suspicion scorer · middleware |
+| 2 | ✅ Done | NLP extractor · confidence gating · ConversationHandler · injection freeze |
+| 3 | ✅ Done | PDF RAG pipeline · A–D grading · graded decision context |
+| 4 | ✅ Done | HRIS integration · product catalogue · suggested alternatives |
+| 5 | ✅ Done | Admin dashboard · Rulebook manager · HRIS manager · API key management |
+| 6 | 🔲 Planned | Webhook mode · Redis rate limiter · Prometheus metrics |
 
 ---
+
+## 👨‍💻 Meet the Team
+
+<div align="center">
+
+Built with dedication by the **SD-05** team.
+
+| Name | Resume |
+|:---:|:---:|
+| **V. Pranesh** | [📄 View Resume](https://drive.google.com/file/d/1IjJbjL1S_Tk2pCws4osd8_7SZ0d985vq/view?usp=sharing) |
+| **S. Pratap** | [📄 View Resume](https://drive.google.com/file/d/1BI-C1PoN5Yd99f4piTS--RJFIS-x-IBe/view?usp=sharing) |
+| **M. Subitha** | [📄 View Resume](https://drive.google.com/file/d/1mCh6FU0gjZjZh3ofObzyfq0EhYshHPlx/view?usp=sharing) |
+| **Adhithyan V** | [📄 View Resume](https://drive.google.com/file/d/14K-X-M5YYHaa3pAQAeQPJdpTiK5GQSdF/view?usp=sharing) |
+
+<br>
 
 Built with ⚡ &nbsp;·&nbsp; Powered by [Groq](https://groq.com) &nbsp;·&nbsp; [LLaMA 3.3 · 70B](https://ai.meta.com/llama/) &nbsp;·&nbsp; [ChromaDB](https://trychroma.com) &nbsp;·&nbsp; [python-telegram-bot v20](https://python-telegram-bot.org)
 

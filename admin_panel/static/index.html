@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MUGEN AI — Admin Panel</title>
+  <meta name="description" content="MUGEN AI Company Admin Panel — Manage rulebooks, employee HRIS data, and API configuration." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:        #080c14;
+      --bg-surface:     #0d1421;
+      --bg-card:        #111827;
+      --bg-card-hover:  #151f30;
+      --border:         rgba(99,140,255,0.12);
+      --border-active:  rgba(99,140,255,0.4);
+      --accent:         #638cff;
+      --accent-glow:    rgba(99,140,255,0.25);
+      --accent2:        #a78bfa;
+      --success:        #34d399;
+      --warning:        #fbbf24;
+      --danger:         #f87171;
+      --text-primary:   #f0f4ff;
+      --text-secondary: #8899bb;
+      --text-muted:     #4a5980;
+      --radius:         14px;
+      --radius-sm:      8px;
+      --shadow:         0 8px 32px rgba(0,0,0,0.5);
+      --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', system-ui, sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ── Animated background glows ───────────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 60% 40% at 20% 10%, rgba(99,140,255,0.06) 0%, transparent 60%),
+        radial-gradient(ellipse 50% 30% at 80% 80%, rgba(167,139,250,0.05) 0%, transparent 60%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────────────── */
+    .layout { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 32px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 36px;
+    }
+    .logo { display: flex; align-items: center; gap: 14px; }
+    .logo-icon {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+    .logo-text { line-height: 1.2; }
+    .logo-title {
+      font-size: 18px; font-weight: 700;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .logo-sub { font-size: 12px; color: var(--text-muted); font-weight: 400; }
+
+    #status-badge {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 16px; border-radius: 999px;
+      background: rgba(52,211,153,0.08);
+      border: 1px solid rgba(52,211,153,0.2);
+      font-size: 13px; color: var(--success); font-weight: 500;
+      transition: var(--transition);
+    }
+    #status-badge .dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ── Tabs ─────────────────────────────────────────────────────────────── */
+    .tabs {
+      display: flex; gap: 6px; margin-bottom: 32px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 6px;
+    }
+    .tab-btn {
+      flex: 1; padding: 11px 16px; border: none;
+      background: transparent; color: var(--text-secondary);
+      font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 500;
+      border-radius: 10px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 7px;
+      transition: var(--transition);
+    }
+    .tab-btn:hover { color: var(--text-primary); background: var(--bg-card-hover); }
+    .tab-btn.active {
+      background: linear-gradient(135deg, rgba(99,140,255,0.18), rgba(167,139,250,0.12));
+      color: var(--accent);
+      border: 1px solid var(--border-active);
+    }
+
+    /* ── Tab panes ────────────────────────────────────────────────────────── */
+    .tab-pane { display: none; animation: fadeUp 0.3s ease; }
+    .tab-pane.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── Cards ────────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px; margin-bottom: 20px;
+      transition: var(--transition);
+    }
+    .card:hover { border-color: var(--border-active); }
+    .card-title {
+      font-size: 15px; font-weight: 600; color: var(--text-primary);
+      margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+    }
+    .card-desc { font-size: 13px; color: var(--text-secondary); margin-bottom: 22px; }
+
+    /* ── Drop Zone ────────────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border-active);
+      border-radius: var(--radius);
+      padding: 48px 24px; text-align: center; cursor: pointer;
+      transition: var(--transition);
+      background: rgba(99,140,255,0.03);
+      position: relative;
+    }
+    .drop-zone:hover, .drop-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(99,140,255,0.08);
+    }
+    .drop-zone input[type="file"] {
+      position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+    }
+    .drop-icon { font-size: 40px; margin-bottom: 12px; display: block; }
+    .drop-text { font-size: 15px; font-weight: 500; color: var(--text-primary); }
+    .drop-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    /* ── Progress bar ─────────────────────────────────────────────────────── */
+    .progress-wrap { margin-top: 18px; display: none; }
+    .progress-wrap.show { display: block; }
+    .progress-label {
+      font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;
+      display: flex; justify-content: space-between;
+    }
+    .progress-bar { height: 6px; background: var(--bg-surface); border-radius: 99px; overflow: hidden; }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 99px; width: 0%; transition: width 0.4s ease;
+    }
+
+    /* ── Rulebook list ────────────────────────────────────────────────────── */
+    .rulebook-list { margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+    .rulebook-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      transition: var(--transition);
+    }
+    .rulebook-item:hover { border-color: var(--border-active); background: var(--bg-card-hover); }
+    .rulebook-icon { font-size: 20px; }
+    .rulebook-name { flex: 1; font-size: 14px; font-weight: 500; color: var(--text-primary); font-family: 'JetBrains Mono', monospace; }
+    .badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 999px; }
+    .badge-indexed { background: rgba(52,211,153,0.12); color: var(--success); border: 1px solid rgba(52,211,153,0.25); }
+    .badge-pending { background: rgba(251,191,36,0.12); color: var(--warning); border: 1px solid rgba(251,191,36,0.25); }
+
+    /* ── Buttons ──────────────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius-sm); border: none;
+      font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 500;
+      cursor: pointer; transition: var(--transition);
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #4f6ef7);
+      color: #fff; box-shadow: 0 4px 16px var(--accent-glow);
+    }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-danger { background: rgba(248,113,113,0.1); color: var(--danger); border: 1px solid rgba(248,113,113,0.2); }
+    .btn-danger:hover { background: rgba(248,113,113,0.2); }
+    .btn-ghost { background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border); }
+    .btn-ghost:hover { color: var(--text-primary); border-color: var(--border-active); }
+    .btn-warning { background: rgba(251,191,36,0.1); color: var(--warning); border: 1px solid rgba(251,191,36,0.2); }
+    .btn-warning:hover { background: rgba(251,191,36,0.2); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; }
+    .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+    /* ── Form grid ────────────────────────────────────────────────────────── */
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 640px) { .form-grid { grid-template-columns: 1fr; } }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    .form-group label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; }
+    .form-group input, .form-group select, .form-group textarea {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 10px 14px;
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px; outline: none;
+      transition: var(--transition);
+    }
+    .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .form-group input::placeholder, .form-group textarea::placeholder { color: var(--text-muted); font-family: 'JetBrains Mono', monospace; }
+    .form-full { grid-column: 1 / -1; }
+
+    /* ── Key status row ───────────────────────────────────────────────────── */
+    .key-status-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      margin-bottom: 16px;
+    }
+    .key-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; min-width: 130px; }
+    .key-value { flex: 1; font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-secondary); word-break: break-all; }
+    .key-status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .key-status-dot.set   { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .key-status-dot.unset { background: var(--danger); }
+
+    /* ── Input wrapper with eye toggle ───────────────────────────────────── */
+    .input-with-toggle { position: relative; }
+    .input-with-toggle input {
+      width: 100%; padding-right: 44px;
+    }
+    .eye-btn {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: var(--text-muted); font-size: 16px; padding: 2px;
+      transition: var(--transition);
+    }
+    .eye-btn:hover { color: var(--text-secondary); }
+
+    /* ── Employee Table ───────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    thead tr { background: var(--bg-surface); }
+    thead th {
+      padding: 13px 16px; text-align: left;
+      font-size: 11px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap;
+    }
+    tbody tr { border-top: 1px solid var(--border); transition: var(--transition); }
+    tbody tr:hover { background: var(--bg-card-hover); }
+    tbody td { padding: 13px 16px; color: var(--text-primary); vertical-align: middle; }
+    .emp-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
+    .dept-badge {
+      font-size: 11px; padding: 3px 10px; border-radius: 999px;
+      background: rgba(99,140,255,0.1); color: var(--accent);
+      border: 1px solid rgba(99,140,255,0.2); white-space: nowrap;
+    }
+    .budget { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--success); }
+
+    /* ── Toast ────────────────────────────────────────────────────────────── */
+    #toast-container {
+      position: fixed; bottom: 28px; right: 28px;
+      display: flex; flex-direction: column; gap: 10px; z-index: 9999;
+    }
+    .toast {
+      padding: 14px 20px; border-radius: var(--radius-sm);
+      font-size: 14px; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      min-width: 280px; box-shadow: var(--shadow);
+      animation: slideIn 0.3s ease; border: 1px solid transparent;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(30px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    .toast-success { background: #0f2820; border-color: rgba(52,211,153,0.3); color: var(--success); }
+    .toast-error   { background: #2a1010; border-color: rgba(248,113,113,0.3); color: var(--danger); }
+    .toast-info    { background: #0f1a2e; border-color: rgba(99,140,255,0.3); color: var(--accent); }
+    .toast-warning { background: #2a2010; border-color: rgba(251,191,36,0.3); color: var(--warning); }
+
+    /* ── Section headers ──────────────────────────────────────────────────── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; flex-wrap: wrap; gap: 12px;
+    }
+    .section-title { font-size: 15px; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px; }
+
+    /* ── Divider ──────────────────────────────────────────────────────────── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+
+    /* ── Empty state ──────────────────────────────────────────────────────── */
+    .empty { text-align: center; padding: 40px 20px; color: var(--text-muted); }
+    .empty-icon { font-size: 36px; margin-bottom: 10px; }
+    .empty-text { font-size: 14px; }
+
+    /* ── Stats row ────────────────────────────────────────────────────────── */
+    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+    @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr; } }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; text-align: center;
+    }
+    .stat-value {
+      font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── Spinner ──────────────────────────────────────────────────────────── */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin 0.7s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Info box ─────────────────────────────────────────────────────────── */
+    .info-box {
+      display: flex; gap: 12px; padding: 14px 16px;
+      background: rgba(99,140,255,0.06);
+      border: 1px solid rgba(99,140,255,0.18);
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+    }
+    .info-box-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .info-box-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Warning box ──────────────────────────────────────────────────────── */
+    .warn-box {
+      display: flex; gap: 12px; padding: 14px 16px;
+      background: rgba(251,191,36,0.06);
+      border: 1px solid rgba(251,191,36,0.2);
+      border-radius: var(--radius-sm);
+      margin-bottom: 20px;
+    }
+    .warn-box-text { font-size: 13px; color: #b8900a; line-height: 1.6; }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🤖</div>
+      <div class="logo-text">
+        <div class="logo-title">MUGEN AI</div>
+        <div class="logo-sub">Company Admin Panel</div>
+      </div>
+    </div>
+    <div id="status-badge">
+      <span class="dot"></span>
+      <span id="status-text">Connecting…</span>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="stat-rulebooks">—</div>
+      <div class="stat-label">Indexed Rulebooks</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-employees">—</div>
+      <div class="stat-label">Employees</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="stat-pdfs">—</div>
+      <div class="stat-label">PDF Files on Disk</div>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs" role="tablist">
+    <button class="tab-btn active" id="tab-rulebook-btn" onclick="switchTab('rulebook')" role="tab" aria-selected="true">
+      📚 Rulebook Manager
+    </button>
+    <button class="tab-btn" id="tab-hris-btn" onclick="switchTab('hris')" role="tab" aria-selected="false">
+      👥 Employee (HRIS) Manager
+    </button>
+    <button class="tab-btn" id="tab-keys-btn" onclick="switchTab('keys')" role="tab" aria-selected="false">
+      🔑 API Keys
+    </button>
+  </div>
+
+  <!-- ══════════════ TAB 1: RULEBOOK ══════════════ -->
+  <div class="tab-pane active" id="tab-rulebook">
+
+    <!-- Upload card -->
+    <div class="card">
+      <div class="card-title">📤 Upload Policy Rulebook</div>
+      <div class="card-desc">Upload a PDF and it will be chunked, embedded, and indexed into ChromaDB for RAG retrieval.</div>
+
+      <div class="drop-zone" id="pdf-drop-zone">
+        <input type="file" id="pdf-file-input" accept=".pdf" />
+        <span class="drop-icon">📄</span>
+        <div class="drop-text">Drag &amp; drop a PDF here, or click to browse</div>
+        <div class="drop-hint">PDF only · Max 50 MB</div>
+      </div>
+
+      <div class="progress-wrap" id="pdf-progress-wrap">
+        <div class="progress-label">
+          <span id="pdf-progress-label">Uploading…</span>
+          <span id="pdf-progress-pct">0%</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="pdf-progress-fill"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:18px; display:flex; align-items:center; gap:12px;">
+        <button class="btn btn-primary" id="pdf-upload-btn" onclick="uploadRulebook()" disabled>
+          <div class="spinner" id="pdf-spinner"></div>
+          <span id="pdf-btn-text">🚀 Ingest into RAG</span>
+        </button>
+        <span id="pdf-filename" style="font-size:13px; color:var(--text-secondary);"></span>
+      </div>
+    </div>
+
+    <!-- Indexed rulebooks -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">📋 Indexed Rulebooks</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadStatus()">↻ Refresh</button>
+      </div>
+      <div id="rulebook-list-container">
+        <div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">Loading…</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ TAB 2: HRIS ══════════════ -->
+  <div class="tab-pane" id="tab-hris">
+
+    <!-- Bulk upload -->
+    <div class="card">
+      <div class="card-title">📂 Bulk Upload HRIS File</div>
+      <div class="card-desc">Upload a <code style="font-family:'JetBrains Mono'; font-size:12px; color:var(--accent);">hris.json</code> file to replace the entire employee database. A backup is created automatically.</div>
+
+      <div class="drop-zone" id="hris-drop-zone">
+        <input type="file" id="hris-file-input" accept=".json" />
+        <span class="drop-icon">📁</span>
+        <div class="drop-text">Drag &amp; drop hris.json here, or click to browse</div>
+        <div class="drop-hint">JSON format · Must contain an "employees" array</div>
+      </div>
+
+      <div style="margin-top:18px; display:flex; align-items:center; gap:12px;">
+        <button class="btn btn-primary" id="hris-upload-btn" onclick="uploadHris()" disabled>
+          <div class="spinner" id="hris-spinner"></div>
+          <span id="hris-btn-text">📥 Upload &amp; Replace HRIS</span>
+        </button>
+        <span id="hris-filename" style="font-size:13px; color:var(--text-secondary);"></span>
+      </div>
+    </div>
+
+    <!-- Add employee -->
+    <div class="card">
+      <div class="card-title">➕ Add Employee</div>
+      <div class="card-desc">Add a single employee record to the current HRIS data.</div>
+
+      <form id="add-emp-form" onsubmit="addEmployee(event)">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Employee ID *</label>
+            <input id="emp-id" type="text" placeholder="EMP005" required />
+          </div>
+          <div class="form-group">
+            <label>Full Name *</label>
+            <input id="emp-name" type="text" placeholder="Jane Doe" required />
+          </div>
+          <div class="form-group">
+            <label>Role *</label>
+            <input id="emp-role" type="text" placeholder="Software Engineer" required />
+          </div>
+          <div class="form-group">
+            <label>Department *</label>
+            <input id="emp-dept" type="text" placeholder="Engineering" required />
+          </div>
+          <div class="form-group">
+            <label>Tenure (years) *</label>
+            <input id="emp-tenure" type="number" min="0" placeholder="2" required />
+          </div>
+          <div class="form-group">
+            <label>Budget (USD) *</label>
+            <input id="emp-budget" type="number" min="0" placeholder="3000" required />
+          </div>
+          <div class="form-group">
+            <label>Manager ID</label>
+            <input id="emp-manager" type="text" placeholder="EMP010" />
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input id="emp-location" type="text" placeholder="Remote" />
+          </div>
+        </div>
+        <div style="margin-top:20px;">
+          <button class="btn btn-primary" type="submit" id="add-emp-btn">
+            <div class="spinner" id="add-emp-spinner"></div>
+            <span id="add-emp-btn-text">➕ Add Employee</span>
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Employee table -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">👥 Current Employees</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadHris()">↻ Refresh</button>
+      </div>
+      <div id="emp-table-container">
+        <div class="empty"><div class="empty-icon">👤</div><div class="empty-text">Loading employees…</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ TAB 3: API KEYS ══════════════ -->
+  <div class="tab-pane" id="tab-keys">
+
+    <div class="info-box">
+      <span class="info-box-icon">ℹ️</span>
+      <div class="info-box-text">
+        Keys are stored in your <code style="font-family:'JetBrains Mono'; font-size:12px; color:var(--accent);">.env</code> file on the server.
+        Changes take effect after restarting the bot process. Existing values are displayed masked for security.
+      </div>
+    </div>
+
+    <!-- Current key status -->
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">🔍 Current Key Status</div>
+        <button class="btn btn-ghost btn-sm" onclick="loadKeys()">↻ Refresh</button>
+      </div>
+
+      <div id="key-status-container">
+        <div class="empty"><div class="empty-icon">🔑</div><div class="empty-text">Loading…</div></div>
+      </div>
+    </div>
+
+    <!-- Update Telegram Bot Token -->
+    <div class="card">
+      <div class="card-title">🤖 Telegram Bot Token</div>
+      <div class="card-desc">
+        Obtain your bot token from <a href="https://t.me/BotFather" target="_blank" style="color:var(--accent); text-decoration:none;">@BotFather</a> on Telegram.
+        Format: <code style="font-family:'JetBrains Mono'; font-size:12px; color:var(--accent);">1234567890:AAHxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>
+      </div>
+
+      <div class="form-group form-full" style="margin-bottom:16px;">
+        <label>New Telegram Bot Token</label>
+        <div class="input-with-toggle">
+          <input type="password" id="new-bot-token" placeholder="Paste your bot token here…" autocomplete="off" />
+          <button class="eye-btn" onclick="toggleVisibility('new-bot-token', this)" title="Show/Hide">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="save-bot-token-btn" onclick="saveKey('bot')">
+        <div class="spinner" id="bot-token-spinner"></div>
+        <span id="bot-token-btn-text">💾 Save Bot Token</span>
+      </button>
+    </div>
+
+    <!-- Update Groq API Key -->
+    <div class="card">
+      <div class="card-title">⚡ Groq API Key</div>
+      <div class="card-desc">
+        Get your API key from <a href="https://console.groq.com" target="_blank" style="color:var(--accent); text-decoration:none;">console.groq.com</a>.
+        Format: <code style="font-family:'JetBrains Mono'; font-size:12px; color:var(--accent);">gsk_xxxxxxxxxxxxxxxxxxxxxxxx</code>
+      </div>
+
+      <div class="form-group form-full" style="margin-bottom:16px;">
+        <label>New Groq API Key</label>
+        <div class="input-with-toggle">
+          <input type="password" id="new-groq-key" placeholder="Paste your Groq API key here…" autocomplete="off" />
+          <button class="eye-btn" onclick="toggleVisibility('new-groq-key', this)" title="Show/Hide">👁</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="save-groq-key-btn" onclick="saveKey('groq')">
+        <div class="spinner" id="groq-key-spinner"></div>
+        <span id="groq-key-btn-text">💾 Save Groq Key</span>
+      </button>
+    </div>
+
+    <!-- Save both together -->
+    <div class="card">
+      <div class="card-title">📦 Save Both Keys at Once</div>
+      <div class="card-desc">Update both keys simultaneously with a single save operation.</div>
+      <div class="warn-box">
+        <span style="font-size:18px; flex-shrink:0;">⚠️</span>
+        <div class="warn-box-text">Restart the bot after updating keys for the changes to take effect.</div>
+      </div>
+      <button class="btn btn-warning" id="save-all-keys-btn" onclick="saveKey('both')">
+        <div class="spinner" id="all-keys-spinner"></div>
+        <span id="all-keys-btn-text">🔄 Save All Keys &amp; Restart Notice</span>
+      </button>
+    </div>
+
+  </div>
+
+</div><!-- /layout -->
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────
+  let selectedPdf  = null;
+  let selectedHris = null;
+
+  // ── Tabs ─────────────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.getElementById('tab-' + tab).classList.add('active');
+    document.getElementById('tab-' + tab + '-btn').classList.add('active');
+    document.getElementById('tab-' + tab + '-btn').setAttribute('aria-selected', 'true');
+    if (tab === 'keys') loadKeys();
+  }
+
+  // ── Toast ─────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `toast toast-${type}`;
+    const icons = { success: '✅', error: '❌', info: 'ℹ️', warning: '⚠️' };
+    el.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+    document.getElementById('toast-container').appendChild(el);
+    setTimeout(() => el.remove(), 4500);
+  }
+
+  // ── File inputs ───────────────────────────────────────────────────────────
+  function setupDropZone(zoneId, inputId, fileVar, btnId, labelId) {
+    const zone  = document.getElementById(zoneId);
+    const input = document.getElementById(inputId);
+
+    input.addEventListener('change', () => {
+      const file = input.files[0];
+      if (!file) return;
+      if (zoneId === 'pdf-drop-zone')  selectedPdf  = file;
+      if (zoneId === 'hris-drop-zone') selectedHris = file;
+      document.getElementById(labelId).textContent = file.name;
+      document.getElementById(btnId).disabled = false;
+    });
+
+    zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+    zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      zone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+      if (zoneId === 'pdf-drop-zone')  selectedPdf  = file;
+      if (zoneId === 'hris-drop-zone') selectedHris = file;
+      document.getElementById(labelId).textContent = file.name;
+      document.getElementById(btnId).disabled = false;
+    });
+  }
+
+  setupDropZone('pdf-drop-zone',  'pdf-file-input',  'selectedPdf',  'pdf-upload-btn',  'pdf-filename');
+  setupDropZone('hris-drop-zone', 'hris-file-input', 'selectedHris', 'hris-upload-btn', 'hris-filename');
+
+  // ── Status / Stats ────────────────────────────────────────────────────────
+  async function loadStatus() {
+    try {
+      const res  = await fetch('/api/status');
+      const data = await res.json();
+
+      document.getElementById('stat-rulebooks').textContent = data.chroma_indexed_sources?.length ?? 0;
+      document.getElementById('stat-pdfs').textContent      = data.rulebook_files_on_disk?.length ?? 0;
+
+      const badge = document.getElementById('status-badge');
+      badge.style.background  = 'rgba(52,211,153,0.08)';
+      badge.style.borderColor = 'rgba(52,211,153,0.2)';
+      badge.style.color       = 'var(--success)';
+      document.getElementById('status-text').textContent = 'API Online';
+
+      // Render rulebook list
+      const indexed   = new Set(data.chroma_indexed_sources || []);
+      const onDisk    = data.rulebook_files_on_disk || [];
+      const container = document.getElementById('rulebook-list-container');
+
+      if (onDisk.length === 0 && indexed.size === 0) {
+        container.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No rulebooks uploaded yet.</div></div>`;
+        return;
+      }
+
+      const allNames = [...new Set([...onDisk, ...indexed])];
+      container.innerHTML = `<div class="rulebook-list">${allNames.map(name => {
+        const isIndexed = indexed.has(name);
+        return `
+          <div class="rulebook-item">
+            <span class="rulebook-icon">📄</span>
+            <span class="rulebook-name">${escHtml(name)}</span>
+            <span class="badge ${isIndexed ? 'badge-indexed' : 'badge-pending'}">
+              ${isIndexed ? '✓ Indexed' : '⏳ Pending'}
+            </span>
+          </div>`;
+      }).join('')}</div>`;
+
+    } catch (err) {
+      document.getElementById('status-text').textContent = 'API Offline';
+      const badge = document.getElementById('status-badge');
+      badge.style.background  = 'rgba(248,113,113,0.08)';
+      badge.style.borderColor = 'rgba(248,113,113,0.2)';
+      badge.style.color       = 'var(--danger)';
+    }
+  }
+
+  // ── Upload Rulebook ───────────────────────────────────────────────────────
+  async function uploadRulebook() {
+    if (!selectedPdf) return;
+    const btn      = document.getElementById('pdf-upload-btn');
+    const spinner  = document.getElementById('pdf-spinner');
+    const btnText  = document.getElementById('pdf-btn-text');
+    const progWrap = document.getElementById('pdf-progress-wrap');
+    const fill     = document.getElementById('pdf-progress-fill');
+    const pct      = document.getElementById('pdf-progress-pct');
+    const label    = document.getElementById('pdf-progress-label');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Ingesting…';
+    progWrap.classList.add('show');
+    label.textContent = 'Uploading & building vectors…';
+
+    // Smooth fake progress during ingest
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress = Math.min(progress + Math.random() * 8, 88);
+      fill.style.width = progress + '%';
+      pct.textContent  = Math.round(progress) + '%';
+    }, 400);
+
+    try {
+      const form = new FormData();
+      form.append('file', selectedPdf);
+      const res  = await fetch('/api/upload-rulebook', { method: 'POST', body: form });
+      const data = await res.json();
+
+      clearInterval(interval);
+      fill.style.width = '100%';
+      pct.textContent  = '100%';
+
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+
+      label.textContent = '✅ Ingestion complete!';
+      const msg = data.was_duplicate
+        ? `"${selectedPdf.name}" already indexed (${data.chunks_created} chunks cached).`
+        : `"${selectedPdf.name}" indexed — ${data.chunks_created} chunks · ${data.pages_processed} pages.`;
+      toast(msg, 'success');
+      selectedPdf = null;
+      document.getElementById('pdf-filename').textContent = '';
+      document.getElementById('pdf-file-input').value = '';
+      setTimeout(() => { progWrap.classList.remove('show'); fill.style.width = '0%'; }, 2500);
+      loadStatus();
+    } catch (err) {
+      clearInterval(interval);
+      fill.style.width = '0%';
+      progWrap.classList.remove('show');
+      toast('Upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '🚀 Ingest into RAG';
+    }
+  }
+
+  // ── Load HRIS ─────────────────────────────────────────────────────────────
+  async function loadHris() {
+    const container = document.getElementById('emp-table-container');
+    try {
+      const res       = await fetch('/api/hris');
+      const data      = await res.json();
+      const employees = data.employees || [];
+
+      document.getElementById('stat-employees').textContent = employees.length;
+
+      if (employees.length === 0) {
+        container.innerHTML = `<div class="empty"><div class="empty-icon">👤</div><div class="empty-text">No employees found.</div></div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th><th>Name</th><th>Role</th><th>Department</th>
+                <th>Tenure</th><th>Budget</th><th>Location</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              ${employees.map(e => `
+                <tr id="row-${escHtml(e.employee_id)}">
+                  <td><span class="emp-id">${escHtml(e.employee_id)}</span></td>
+                  <td>${escHtml(e.name)}</td>
+                  <td>${escHtml(e.role)}</td>
+                  <td><span class="dept-badge">${escHtml(e.department)}</span></td>
+                  <td>${e.tenure_years} yr${e.tenure_years !== 1 ? 's' : ''}</td>
+                  <td><span class="budget">$${Number(e.budget_usd).toLocaleString()}</span></td>
+                  <td>${escHtml(e.location || '—')}</td>
+                  <td>
+                    <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${escHtml(e.employee_id)}')">🗑</button>
+                  </td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>`;
+    } catch (err) {
+      container.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Failed to load employees.</div></div>`;
+    }
+  }
+
+  // ── Upload HRIS JSON ──────────────────────────────────────────────────────
+  async function uploadHris() {
+    if (!selectedHris) return;
+    const btn     = document.getElementById('hris-upload-btn');
+    const spinner = document.getElementById('hris-spinner');
+    const btnText = document.getElementById('hris-btn-text');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Uploading…';
+
+    try {
+      const form = new FormData();
+      form.append('file', selectedHris);
+      const res  = await fetch('/api/hris/upload', { method: 'POST', body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Upload failed');
+      toast(`HRIS replaced — ${data.employees_count} employees loaded.`, 'success');
+      selectedHris = null;
+      document.getElementById('hris-filename').textContent = '';
+      document.getElementById('hris-file-input').value = '';
+      loadHris();
+    } catch (err) {
+      toast('HRIS upload failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '📥 Upload & Replace HRIS';
+    }
+  }
+
+  // ── Add Employee ──────────────────────────────────────────────────────────
+  async function addEmployee(e) {
+    e.preventDefault();
+    const btn     = document.getElementById('add-emp-btn');
+    const spinner = document.getElementById('add-emp-spinner');
+    const btnText = document.getElementById('add-emp-btn-text');
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Adding…';
+
+    const payload = {
+      employee_id:  document.getElementById('emp-id').value.trim(),
+      name:         document.getElementById('emp-name').value.trim(),
+      role:         document.getElementById('emp-role').value.trim(),
+      department:   document.getElementById('emp-dept').value.trim(),
+      tenure_years: parseInt(document.getElementById('emp-tenure').value),
+      budget_usd:   parseInt(document.getElementById('emp-budget').value),
+      manager_id:   document.getElementById('emp-manager').value.trim() || null,
+      location:     document.getElementById('emp-location').value.trim() || 'Remote',
+    };
+
+    try {
+      const res  = await fetch('/api/hris/employee', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed');
+      toast(`Employee ${payload.employee_id} added successfully.`, 'success');
+      document.getElementById('add-emp-form').reset();
+      loadHris();
+    } catch (err) {
+      toast('Add employee failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      btnText.textContent = '➕ Add Employee';
+    }
+  }
+
+  // ── Delete Employee ───────────────────────────────────────────────────────
+  async function deleteEmployee(id) {
+    if (!confirm(`Remove employee "${id}"? This cannot be undone.`)) return;
+    try {
+      const res  = await fetch(`/api/hris/${encodeURIComponent(id)}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Delete failed');
+      toast(`Employee ${id} removed.`, 'success');
+      const row = document.getElementById('row-' + id);
+      if (row) row.style.animation = 'fadeUp 0.2s ease reverse';
+      setTimeout(loadHris, 250);
+    } catch (err) {
+      toast('Delete failed: ' + err.message, 'error');
+    }
+  }
+
+  // ── Load API Keys ─────────────────────────────────────────────────────────
+  async function loadKeys() {
+    const container = document.getElementById('key-status-container');
+    try {
+      const res  = await fetch('/api/config/keys');
+      const data = await res.json();
+
+      container.innerHTML = `
+        <div class="key-status-row">
+          <span class="key-label">🤖 Bot Token</span>
+          <span class="key-value">${data.bot_token_masked || '<em style="color:var(--text-muted)">Not set</em>'}</span>
+          <span class="key-status-dot ${data.bot_token_set ? 'set' : 'unset'}"></span>
+          <span style="font-size:12px; color:${data.bot_token_set ? 'var(--success)' : 'var(--danger)'};">
+            ${data.bot_token_set ? 'Configured' : 'Missing'}
+          </span>
+        </div>
+        <div class="key-status-row">
+          <span class="key-label">⚡ Groq API Key</span>
+          <span class="key-value">${data.groq_key_masked || '<em style="color:var(--text-muted)">Not set</em>'}</span>
+          <span class="key-status-dot ${data.groq_key_set ? 'set' : 'unset'}"></span>
+          <span style="font-size:12px; color:${data.groq_key_set ? 'var(--success)' : 'var(--danger)'};">
+            ${data.groq_key_set ? 'Configured' : 'Missing'}
+          </span>
+        </div>`;
+    } catch (err) {
+      container.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Failed to load key status.</div></div>`;
+    }
+  }
+
+  // ── Save Key(s) ───────────────────────────────────────────────────────────
+  async function saveKey(which) {
+    const configs = {
+      bot:  { btnId: 'save-bot-token-btn', spinnerId: 'bot-token-spinner', textId: 'bot-token-btn-text',  inputId: 'new-bot-token',  field: 'bot_token',    label: 'Bot Token' },
+      groq: { btnId: 'save-groq-key-btn',  spinnerId: 'groq-key-spinner',  textId: 'groq-key-btn-text',   inputId: 'new-groq-key',   field: 'groq_api_key', label: 'Groq API Key' },
+      both: { btnId: 'save-all-keys-btn',  spinnerId: 'all-keys-spinner',  textId: 'all-keys-btn-text',   inputId: null,             field: null,           label: 'Keys' },
+    };
+    const cfg = configs[which];
+
+    const payload = {};
+    if (which === 'bot' || which === 'both') {
+      const val = document.getElementById('new-bot-token').value.trim();
+      if (val) payload.bot_token = val;
+    }
+    if (which === 'groq' || which === 'both') {
+      const val = document.getElementById('new-groq-key').value.trim();
+      if (val) payload.groq_api_key = val;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      toast('Please enter a value before saving.', 'warning');
+      return;
+    }
+
+    const btn     = document.getElementById(cfg.btnId);
+    const spinner = document.getElementById(cfg.spinnerId);
+    const btnText = document.getElementById(cfg.textId);
+
+    btn.disabled = true;
+    spinner.style.display = 'block';
+    btnText.textContent = 'Saving…';
+
+    try {
+      const res  = await fetch('/api/config/keys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Save failed');
+
+      toast(`${cfg.label} saved to .env ✓ — restart the bot to apply.`, 'success');
+
+      // Clear inputs
+      if (which === 'bot'  || which === 'both') document.getElementById('new-bot-token').value = '';
+      if (which === 'groq' || which === 'both') document.getElementById('new-groq-key').value  = '';
+
+      // Reload status
+      loadKeys();
+    } catch (err) {
+      toast('Save failed: ' + err.message, 'error');
+    } finally {
+      btn.disabled = false;
+      spinner.style.display = 'none';
+      const origTexts = { bot: '💾 Save Bot Token', groq: '💾 Save Groq Key', both: '🔄 Save All Keys & Restart Notice' };
+      btnText.textContent = origTexts[which];
+    }
+  }
+
+  // ── Toggle password visibility ────────────────────────────────────────────
+  function toggleVisibility(inputId, btn) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      btn.textContent = '🙈';
+    } else {
+      input.type = 'password';
+      btn.textContent = '👁';
+    }
+  }
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]
+    );
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+  loadStatus();
+  loadHris();
+</script>
+</body>
+</html>

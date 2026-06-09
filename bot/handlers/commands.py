@@ -1,15 +1,16 @@
 """
 bot/handlers/commands.py
 ─────────────────────────────────────────────────────────────────────────────
-MUGEN AI — Stage 6: Command Handlers
+MUGEN AI — Command Handlers
 ══════════════════════════════════════════════════════════════════════════════
 Implements:
-  /start           — Welcome & capability overview
-  /status [id]     — Rich MARKDOWN_V2 request card
-  /history         — Last 10 requests with inline summaries
-  /cancel          — Abort in-progress conversation
-  /upload_rulebook — Admin-only PDF → RAG ingest
-  document handler — PDF file handler post /upload_rulebook
+  /start    — Welcome & capability overview
+  /status   — Rich MARKDOWN_V2 request card
+  /history  — Last 10 requests with inline summaries
+  /cancel   — Abort in-progress conversation
+
+Note: Rulebook upload and HRIS management are handled via the
+      Admin Web Panel (admin_panel/). Run `python -m admin_panel.run`.
 """
 
 from __future__ import annotations
@@ -19,7 +20,7 @@ import re
 from typing import Optional
 
 import structlog
-from telegram import Document, Update
+from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
@@ -63,13 +64,10 @@ Here's what I can do:
 • 🛡️ Every message passes through 6\\-signal security
 
 *Commands*
-`/request`           — Start a new asset request
-`/status <id>`       — Check a specific request
-`/history`           — View your last 10 requests
-`/cancel`            — Cancel current request
-`/upload_rulebook`   — _\\(Admin\\)_ Index a policy PDF
-
-_Powered by LLaMA 3\\.3 · 70B · Groq \\+ ChromaDB RAG_
+`/request`   — Start a new asset request
+`/status`    — Check your latest request
+`/history`   — View your last 10 requests
+`/cancel`    — Cancel current request
 """
 
 
@@ -84,7 +82,7 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# /status — MARKDOWN_V2 confirmation card (Stage 6)
+# /status — MARKDOWN_V2 confirmation card
 # ─────────────────────────────────────────────────────────────────────────────
 
 _STATUS_ICON = {
@@ -109,10 +107,8 @@ def _build_status_card(req: dict) -> str:
     status  = req.get("status", "PENDING")
     icon    = _STATUS_ICON.get(status, "❓")
 
-    # Confidence bar from policy_refs isn't stored — use rag_signal indicator
     rag_sig = _RAG_BADGE.get(req.get("rag_signal") or "NONE", "⚪ None")
 
-    # Parse stored policy_refs JSON
     refs_raw = req.get("policy_refs") or "[]"
     try:
         refs_list = json.loads(refs_raw) if isinstance(refs_raw, str) else refs_raw
@@ -161,7 +157,6 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
     user = update.effective_user
     args = context.args or []
 
-    # Look up by ID arg or fall back to most recent
     if args:
         req_id = args[0].upper()
         req = await get_request_by_id(req_id)
@@ -181,7 +176,6 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
             )
             return
 
-    # Security: non-admin cannot view another user's request
     if req["user_id"] != user.id and not _is_admin(user.id):
         await update.message.reply_text(
             "⛔ You can only view your own requests\\.",
@@ -195,7 +189,7 @@ async def handle_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# /history — paginated request list (Stage 6)
+# /history — paginated request list
 # ─────────────────────────────────────────────────────────────────────────────
 
 _HIST_ICONS = {
@@ -265,117 +259,3 @@ async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         parse_mode=ParseMode.MARKDOWN_V2,
     )
     log.info("cmd_cancel", user_id=user.id, session_id=session_id)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# /upload_rulebook  (admin-only)
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def handle_upload_rulebook(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    from bot.rag.retriever import get_indexed_sources, has_rulebook
-
-    user = update.effective_user
-
-    if not _is_admin(user.id):
-        await update.message.reply_text(
-            "⛔ This command is restricted to administrators\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        log.warning("unauthorised_rulebook_upload", user_id=user.id)
-        return
-
-    context.user_data["awaiting_rulebook"] = True
-
-    if has_rulebook():
-        sources = get_indexed_sources()
-        src_list = "\n".join(f"  • `{_esc(s)}`" for s in sources) or "  _None yet_"
-        indexed_block = f"\n\n*Currently indexed rulebooks:*\n{src_list}"
-    else:
-        indexed_block = "\n\n_No rulebooks indexed yet — this will be the first\\._"
-
-    await update.message.reply_text(
-        "📚 *Admin — Rulebook Upload*\n\n"
-        "Send a policy PDF to index it into the RAG store\\.\n"
-        "_Supported: PDF up to 50 MB · Duplicates are detected automatically_"
-        + indexed_block,
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
-    log.info("awaiting_rulebook_pdf", admin_id=user.id)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Document handler — handles PDF uploads after /upload_rulebook
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def handle_document(
-    update: Update, context: ContextTypes.DEFAULT_TYPE
-) -> None:
-    from bot.rag.pdf_loader import IngestionReport, ingest_pdf
-
-    user     = update.effective_user
-    awaiting = (context.user_data or {}).get("awaiting_rulebook", False)
-
-    if not awaiting:
-        await update.message.reply_text(
-            "📎 To upload a rulebook, use `/upload_rulebook` first\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    if not _is_admin(user.id):
-        await update.message.reply_text("⛔ Admin access required\\.", parse_mode=ParseMode.MARKDOWN_V2)
-        return
-
-    doc: Document = update.message.document
-    if not doc.file_name.lower().endswith(".pdf"):
-        await update.message.reply_text(
-            "❌ Only PDF files are accepted\\. Please send a `\\.pdf` document\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        return
-
-    status_msg = await update.message.reply_text(
-        "⏳ *Downloading PDF…*",
-        parse_mode=ParseMode.MARKDOWN_V2,
-    )
-
-    try:
-        tg_file = await context.bot.get_file(doc.file_id)
-        dest    = settings.rulebooks_dir / doc.file_name
-        await tg_file.download_to_drive(str(dest))
-
-        await status_msg.edit_text(
-            "⏳ *PDF downloaded\\. Extracting text and building vectors…*\n"
-            "_This may take 10–60 seconds depending on file size\\._",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-
-        report: IngestionReport = await ingest_pdf(pdf_path=dest, admin_id=user.id)
-        context.user_data["awaiting_rulebook"] = False
-
-        reply = f"📚 *Rulebook Ingestion Report*\n\n{_esc(str(report))}"
-        await status_msg.edit_text(reply, parse_mode=ParseMode.MARKDOWN_V2)
-        log.info(
-            "rulebook_ingested",
-            file=doc.file_name,
-            chunks=report.chunks_created,
-            duplicate=report.was_duplicate,
-            admin=user.id,
-        )
-
-    except ValueError as exc:
-        await status_msg.edit_text(
-            f"❌ *Ingestion failed — validation error*\n\n`{_esc(str(exc))}`",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )
-        log.warning("rulebook_validation_failed", error=str(exc))
-
-    except Exception as exc:
-        log.error("rulebook_ingest_failed", error=str(exc))
-        await status_msg.edit_text(
-            "❌ *Ingestion failed — internal error\\.*\n"
-            "Please check server logs for details\\.",
-            parse_mode=ParseMode.MARKDOWN_V2,
-        )

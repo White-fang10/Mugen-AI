@@ -34,8 +34,8 @@ from bot.config import get_settings
 from bot.db.schema import init_db
 from bot.handlers.commands import (
     handle_start,
-    handle_upload_rulebook,
     handle_status,
+    handle_history,
     handle_cancel,
 )
 from bot.handlers.conversation import build_request_conversation
@@ -228,14 +228,10 @@ def build_application() -> Application:
     app.add_handler(build_request_conversation())
 
     # ── Standalone command handlers ───────────────────────────────────────────
-    app.add_handler(CommandHandler("start",           handle_start))
-    app.add_handler(CommandHandler("status",          handle_status))
-    app.add_handler(CommandHandler("cancel",          handle_cancel))
-    app.add_handler(CommandHandler("upload_rulebook", handle_upload_rulebook))
-
-    # ── Document handler (for rulebook PDF uploads) ───────────────────────────
-    from bot.handlers.commands import handle_document
-    app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
+    app.add_handler(CommandHandler("start",   handle_start))
+    app.add_handler(CommandHandler("status",  handle_status))
+    app.add_handler(CommandHandler("history", handle_history))
+    app.add_handler(CommandHandler("cancel",  handle_cancel))
 
     # ── Catch-all: messages outside any active conversation ───────────────────
     async def _orphan_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
