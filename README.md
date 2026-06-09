@@ -1,5 +1,3 @@
-# 🤖 MUGEN AI — Enterprise Telegram Asset-Request Bot
-
 <div align="center">
 
 ```
@@ -11,225 +9,326 @@
 ╚═╝     ╚═╝ ╚═════╝  ╚═════╝ ╚══════╝╚═╝  ╚═══╝    ╚═╝  ╚═╝╚═╝
 ```
 
-**Autonomous · Policy-Aware · Adversarially Hardened**
+### Autonomous · Policy-Aware · Adversarially Hardened
 
-[![Python](https://img.shields.io/badge/Python-3.11-blue?logo=python&logoColor=white)](https://python.org)
-[![LLaMA](https://img.shields.io/badge/LLM-LLaMA_3.3_70B-purple?logo=meta)](https://groq.com)
-[![RAG](https://img.shields.io/badge/RAG-ChromaDB_+_MiniLM-green)](https://www.trychroma.com)
-[![PTB](https://img.shields.io/badge/Bot-python--telegram--bot_v20-blue?logo=telegram)](https://python-telegram-bot.org)
-[![License](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python&logoColor=white)](https://python.org)
+[![LLaMA](https://img.shields.io/badge/LLM-LLaMA_3.3_70B-7C3AED?style=flat-square&logo=meta)](https://groq.com)
+[![RAG](https://img.shields.io/badge/RAG-ChromaDB_·_MiniLM-16A34A?style=flat-square)](https://trychroma.com)
+[![PTB](https://img.shields.io/badge/Bot-python--telegram--bot_v20-0088CC?style=flat-square&logo=telegram)](https://python-telegram-bot.org)
+[![License](https://img.shields.io/badge/License-MIT-F59E0B?style=flat-square)](LICENSE)
+
+<br/>
+
+> **MUGEN AI** is not a form-filler. It is an autonomous, adversarially-hardened enterprise agent  
+> that processes IT asset requests through a **four-layer intelligence stack** — all inside Telegram.
+
+<br/>
 
 </div>
 
 ---
 
-> **MUGEN AI** is not a form-filler. It is an autonomous, adversarially-hardened enterprise agent that processes IT asset requests through a four-layer intelligence stack — all inside a Telegram chat.
+<div align="center">
+
+## 🆚 Why MUGEN AI
+
+| | Typical Asset Bot | MUGEN AI |
+|:---:|:---|:---|
+| **Input** | Static dropdowns | Free-text NLP with typo correction |
+| **Policy** | Hardcoded rules | Live RAG from uploaded company PDFs |
+| **Decision** | Rule engine | LLaMA 3.3-70B with cited policy refs |
+| **Confidence** | N/A | Per-slot 0–100% confidence scoring |
+| **Security** | None | 6-signal ensemble + NLP injection scanner |
+| **Outcomes** | Approve / Reject | `APPROVED` · `NEEDS_REVIEW` · `REJECTED` |
+
+</div>
 
 ---
 
-## ✨ What Makes It Different
+<div align="center">
 
-| Typical Asset Bot | MUGEN AI |
-|---|---|
-| Static form with dropdowns | Free-text NLP with typo correction |
-| No policy awareness | Live RAG against your company PDFs |
-| Hardcoded approval rules | LLM decision engine with reasoning |
-| No security | 6-signal suspicion ensemble + NLP injection scanner |
-| Yes/No outcomes | `APPROVED` · `NEEDS_REVIEW` · `REJECTED` with cited policy clauses |
+## 🏛️ Four-Layer Intelligence Stack
 
----
-
-## 🏛️ Architecture — Four Intelligence Layers
+</div>
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     TELEGRAM USER MESSAGE                        │
-└──────────────────────────────┬──────────────────────────────────┘
-                               │
-                ───────────────▼───────────────
-               │  LAYER 1: SUSPICION SCORER    │  ← group -999 middleware
-               │  6-signal ensemble            │    fires BEFORE everything
-               │  • Regex blacklist    (30%)   │
-               │  • Injection probes   (25%)   │
-               │  • Entropy anomaly    (15%)   │
-               │  • Unicode obfuscation(15%)   │
-               │  • Rate abuse window  (15%)   │
-               │  • Groq LLM judge  (grey-zone)│
-                ───────────────────────────────
-                          │              │
-                   CLEAN  │              │  SUSPICIOUS
-                          ▼              ▼
-               ┌──────────────┐    ┌──────────────┐
-               │ Continue to  │    │  QUARANTINE  │
-               │  business    │    │  + DB log    │
-               │  logic       │    │  + HALT      │
-               └──────┬───────┘    └──────────────┘
-                      │
-                ───────▼───────────────────────────
-               │  LAYER 2: NLP FRONT-END (Stage 2) │
-               │  Per-slot Groq extraction          │
-               │  • Typo correction                 │
-               │  • Paraphrase normalisation        │
-               │  • Confidence scoring (0.0–1.0)    │
-               │  • injection_risk: none/low/high   │
-               │                                    │
-               │  confidence < 0.70 → re-ask user   │
-               │  injection_risk=high → FREEZE 🔒   │
-                ────────────────────────────────────
-                      │
-                ───────▼───────────────────────────
-               │  LAYER 3: RAG PIPELINE            │
-               │  PyMuPDF → RecursiveTextSplitter  │
-               │  → all-MiniLM-L6-v2 (local CPU)  │
-               │  → ChromaDB similarity search     │
-               │  Returns top-K policy chunks      │
-                ────────────────────────────────────
-                      │
-                ───────▼───────────────────────────
-               │  LAYER 4: LLM DECISION ENGINE     │
-               │  RAG context + static policy JSON │
-               │  + HRIS budget entitlement        │
-               │  → LLaMA 3.3-70B via Groq         │
-               │  → APPROVED / NEEDS_REVIEW /      │
-               │     REJECTED + policy citations   │
-                ────────────────────────────────────
+                    ┌──────────────────────────────────────┐
+                    │        TELEGRAM USER MESSAGE          │
+                    └─────────────────┬────────────────────┘
+                                      │
+               ╔══════════════════════▼═══════════════════════╗
+               ║         LAYER 1 — SUSPICION SCORER           ║
+               ║         (PTB handler group -999)             ║
+               ║                                              ║
+               ║   Regex Blacklist    ████░░░░░░  30 %        ║
+               ║   Injection Probes   ██████░░░░  25 %        ║
+               ║   Entropy Anomaly    ████░░░░░░  15 %        ║
+               ║   Unicode Obfusc.    ████░░░░░░  15 %        ║
+               ║   Rate Abuse         ████░░░░░░  15 %        ║
+               ║   LLM Judge          ────── grey zone ─────  ║
+               ╚════════════════╤═════════════════╤══════════╝
+                           SAFE │           THREAT │
+                                ▼                  ▼
+                         Continue          ⛔ QUARANTINE
+                                │            + DB log
+               ╔════════════════▼══════════════════════════════╗
+               ║        LAYER 2 — NLP FRONT-END               ║
+               ║        (Per-slot Groq extraction)            ║
+               ║                                              ║
+               ║   Typo correction    "macbok" → MacBook Pro  ║
+               ║   Normalisation      "ASAP"   → HIGH         ║
+               ║   Confidence gate    < 0.70   → re-ask       ║
+               ║   injection_risk     high     → 🔒 FREEZE    ║
+               ╚════════════════╤══════════════════════════════╝
+                                │
+               ╔════════════════▼══════════════════════════════╗
+               ║        LAYER 3 — RAG PIPELINE                ║
+               ║        (Stage 3 — this release)              ║
+               ║                                              ║
+               ║   PyMuPDF  →  chunk 400/60  →  MiniLM-L6-v2 ║
+               ║   SHA-256 dedup  ·  idempotent upsert        ║
+               ║   Top-3 chunks with A / B / C / D grades     ║
+               ╚════════════════╤══════════════════════════════╝
+                                │
+               ╔════════════════▼══════════════════════════════╗
+               ║        LAYER 4 — DECISION ENGINE             ║
+               ║                                              ║
+               ║   Graded RAG context → LLaMA 3.3-70B        ║
+               ║   + asset_policy.json  + products.json       ║
+               ║   → APPROVED / NEEDS_REVIEW / REJECTED       ║
+               ║      with policy citations & confidence      ║
+               ╚══════════════════════════════════════════════╝
 ```
 
 ---
 
-## 🧠 NLP Layer Deep Dive (Stage 2)
+<div align="center">
 
-The NLP extractor is the most sophisticated part of the system. Each slot gets its own dedicated LLM call with a precision-engineered prompt.
+## 🧠 NLP Layer — How Slot Extraction Works
 
-### What one extraction call does
+</div>
 
-```json
-// User says: "macbok pro for video editing, kinda urgent, around 2 grand"
+Each slot gets its **own dedicated LLM call** with a precision-engineered prompt.
 
-// Slot: asset_name
-{
-  "value": "MacBook Pro",
-  "confidence": 0.85,
-  "corrected_text": "MacBook Pro",   ← typo fixed
-  "injection_risk": "none"
-}
+<div align="center">
 
-// Slot: urgency  
-{
-  "value": "HIGH",                   ← "kinda urgent" → HIGH
-  "confidence": 0.72,
-  "corrected_text": null,
-  "injection_risk": "none"
-}
-
-// Slot: cost_estimate
-{
-  "value": 2000.0,                   ← "2 grand" → 2000.0
-  "confidence": 0.91,
-  "corrected_text": null,
-  "injection_risk": "none"
-}
 ```
+User says: "need a macbok pro for video editing, kinda urgent, 2 grand"
+```
+
+| Slot | Extracted | Corrected | Confidence | Risk |
+|:----:|:---:|:---:|:---:|:---:|
+| `asset_name` | `MacBook Pro` | ✏️ `macbok` → `MacBook Pro` | 0.85 | none |
+| `urgency` | `HIGH` | "kinda urgent" → `HIGH` | 0.72 | none |
+| `cost_estimate` | `2000.0` | "2 grand" → `2000.0` | 0.91 | none |
+
+</div>
 
 ### Confidence Thresholding
 
-```
-confidence ≥ 0.70  ──────────────▶ ✅ Slot accepted
-confidence 0.40–0.69 ────────────▶ 🔍 Low-confidence re-ask with hint
-confidence < 0.40  ──────────────▶ ❓ Failed extraction, original prompt repeated
-                                       (max 3 retries, then slot skipped)
-```
-
-### Injection Risk — Session Freeze
-
-If **any** slot extraction detects `injection_risk: "high"`:
+<div align="center">
 
 ```
-🔒 Session Frozen — Security Alert
-
-MUGEN AI's NLP layer detected a potential prompt-injection or
-policy-bypass attempt in your last message.
-
-This session has been permanently frozen and the event has
-been logged for administrator review.
+≥ 0.70  ──────────────▶  ✅  Slot accepted, move on
+0.40–0.69 ────────────▶  🔍  Re-ask with a contextual hint
+< 0.40  ──────────────▶  ❓  Re-ask with the original prompt
+                              (max 3 retries → slot skipped)
 ```
 
-The `SlotMachine` transitions to `FROZEN` (a terminal state), the `ConversationHandler` ends, and a `INJECTION_FREEZE` event is written to the security_events table.
+</div>
+
+### Injection Freeze
+
+If **any** slot extraction detects `injection_risk: "high"`, the session transitions to `FROZEN` — a permanent terminal state. No further input is accepted, and a `INJECTION_FREEZE` event is logged to the database.
 
 ---
 
+<div align="center">
+
+## 🗂️ Stage 3 RAG Pipeline
+
+</div>
+
+<div align="center">
+
+```
+ Admin sends PDF
+       │
+       ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  STEP 1 — VALIDATION                                    │
+ │  • Size cap: 50 MB                                      │
+ │  • Magic-byte check (%PDF)                              │
+ │  • SHA-256 dedup → skip if already indexed              │
+ └─────────────────────────┬───────────────────────────────┘
+                           │
+                           ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  STEP 2 — TEXT EXTRACTION  (PyMuPDF)                   │
+ │  • Page-by-page with [Page N] markers                   │
+ │  • Header/footer stripping                              │
+ │  • Skips image-only pages (< 30 chars)                  │
+ └─────────────────────────┬───────────────────────────────┘
+                           │
+                           ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  STEP 3 — CHUNKING  (RecursiveCharacterTextSplitter)   │
+ │  • chunk_size = 400  ·  chunk_overlap = 60             │
+ │  • Separators: \n\n → \n → sentence → word             │
+ │  • Rich metadata: source, page, chunk_index, hash       │
+ └─────────────────────────┬───────────────────────────────┘
+                           │
+                           ▼
+ ┌─────────────────────────────────────────────────────────┐
+ │  STEP 4 — UPSERT  (all-MiniLM-L6-v2 → ChromaDB)       │
+ │  • Deterministic IDs: hash[:16]_chunk_idx               │
+ │  • Idempotent: re-ingesting same file = no-op           │
+ └─────────────────────────────────────────────────────────┘
+```
+
+</div>
+
+### Relevance Grading (A–D)
+
+<div align="center">
+
+| Grade | Cosine Distance | Meaning | Decision weight |
+|:---:|:---:|:---:|:---:|
+| **A** | ≤ 0.35 | Highly relevant | Cited directly |
+| **B** | ≤ 0.50 | Relevant | Cited with confidence |
+| **C** | ≤ 0.65 | Marginal | Used as weak signal |
+| **D** | > 0.65 | Low relevance | Flagged in context |
+
+</div>
+
+---
+
+<div align="center">
+
+## 💬 Full Request Flow
+
+</div>
+
+```
+User  → /request
+ Bot  → 🖥️ What asset do you need?
+
+User  → "macbok pro 14 for video editing"
+ Bot  → ✏️ (interpreted as: MacBook Pro 14)
+         📝 Why do you need this asset?
+
+User  → "new marketing campaign post-production"
+ Bot  → ⏱️ How urgent is this?
+
+User  → "kinda urgent"
+ Bot  → 🔍 (Confidence: 72% — let me double-check)
+         Please reply with HIGH, NORMAL, or LOW.
+
+User  → "HIGH"
+ Bot  → 💰 Approximate cost in USD?
+
+User  → "around 2k"
+ Bot  → 📋 Request Summary
+         Asset    : MacBook Pro 14
+         Reason   : new marketing campaign post-production
+         Urgency  : HIGH
+         Cost     : $2,000
+         ─────────────────────────────
+         Reply Yes to submit · No to restart
+
+User  → yes
+ Bot  → ✅ Decision: APPROVED
+         Request ID   : A1B2C3D4
+         AI Confidence: ██████████ 94%
+         Reasoning    : MacBook Pro 14 is within the $3,500 laptop cap
+                        per asset_policy.json §laptop.max_usd. The HIGH
+                        urgency for a campaign deadline is justified.
+         Policy refs  : asset_policy.json §laptop · rulebook.pdf p.12 (Grade A)
+```
+
+---
+
+<div align="center">
+
 ## 📁 Project Structure
+
+</div>
 
 ```
 sd05-asset-request-bot/
 │
 ├── bot/
-│   ├── main.py                 # App bootstrap, middleware, routing
-│   ├── config.py               # Pydantic-settings (env-driven)
+│   ├── main.py                    Application bootstrap, middleware, routing
+│   ├── config.py                  Pydantic-settings (env-driven)
 │   │
 │   ├── handlers/
-│   │   ├── commands.py         # /start, /status, /upload_rulebook
-│   │   ├── conversation.py     # PTB ConversationHandler (Stage 2)
-│   │   └── messages.py         # Orphan message fallback
+│   │   ├── commands.py            /start  /status  /upload_rulebook
+│   │   ├── conversation.py        PTB ConversationHandler (/request flow)
+│   │   └── messages.py            Orphan message fallback
 │   │
 │   ├── slots/
-│   │   ├── extractor.py        # 🧠 NLP slot extractor (Stage 2 core)
-│   │   └── state.py            # FSM: COLLECTING→CONFIRMING→DECIDING→DONE/FROZEN
+│   │   ├── extractor.py           NLP slot extractor · confidence · injection_risk
+│   │   └── state.py               FSM: COLLECTING → CONFIRMING → DECIDING → DONE/FROZEN
 │   │
 │   ├── validation/
-│   │   └── decision.py         # LLM decision engine (RAG + policy)
+│   │   └── decision.py            LLM decision engine (RAG + graded context)
 │   │
 │   ├── rag/
-│   │   ├── pdf_loader.py       # PyMuPDF → ChromaDB ingestion
-│   │   └── retriever.py        # MiniLM embeddings + similarity search
+│   │   ├── pdf_loader.py          PyMuPDF → Chunker → ChromaDB (Stage 3)
+│   │   └── retriever.py           MiniLM embeddings · A–D grading · RagContext
 │   │
 │   ├── security/
-│   │   └── scorer.py           # 6-signal suspicion ensemble
+│   │   └── scorer.py              6-signal suspicion ensemble
 │   │
 │   └── db/
-│       ├── schema.py            # SQLite WAL schema (4 tables)
-│       └── repository.py        # Async aiosqlite data access
+│       ├── schema.py              SQLite WAL schema (4 tables)
+│       └── repository.py          Async aiosqlite data access
 │
 ├── data/
-│   ├── hris.json               # Mock employee records
-│   ├── asset_policy.json       # Cost caps, category rules
-│   └── products.json           # Product catalogue with MSRP
+│   ├── hris.json                  Mock employee records
+│   ├── asset_policy.json          Cost caps · category rules · prohibited items
+│   └── products.json              Product catalogue with MSRP pricing
 │
-├── rulebooks/                  # Drop PDFs here (or via /upload_rulebook)
-├── chroma_store/               # Auto-generated vector DB
+├── rulebooks/                     Drop PDFs here (or via /upload_rulebook)
+├── chroma_store/                  Auto-generated ChromaDB vector store
 │
-├── Dockerfile                  # Railway-ready, non-root, model pre-baked
-├── requirements.txt
-└── .env.example
+├── Dockerfile                     Railway-ready · non-root · model pre-baked
+├── requirements.txt               All deps pinned
+└── .env.example                   Environment variable template
 ```
 
 ---
 
+<div align="center">
+
 ## 🚀 Quick Start
 
-### 1. Clone & configure
+</div>
+
+**1. Clone & configure**
 
 ```bash
-git clone <repo>
+git clone <repo-url>
 cd sd05-asset-request-bot
 cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```dotenv
 BOT_TOKEN=your_telegram_bot_token
 GROQ_API_KEY=your_groq_api_key
-ADMIN_USER_IDS=123456789          # your Telegram user ID
+ADMIN_USER_IDS=123456789        # your Telegram user ID
 ```
 
-### 2. Install & run
+**2. Install & run**
 
 ```bash
 pip install -r requirements.txt
 python -m bot.main
 ```
 
-### 3. Docker (recommended for production)
+**3. Docker (recommended)**
 
 ```bash
 docker build -t mugen-ai .
@@ -241,124 +340,76 @@ docker run -d \
   mugen-ai
 ```
 
----
-
-## 💬 Bot Commands
-
-| Command | Access | Description |
-|---|---|---|
-| `/start` | All | Welcome message and capability overview |
-| `/request` | All | Start a new asset request (ConversationHandler) |
-| `/status [id]` | All | Check request status (latest or by ID) |
-| `/cancel` | All | Cancel the current request conversation |
-| `/upload_rulebook` | Admin | Upload a policy PDF for RAG indexing |
-
----
-
-## 📖 How a Request Works
+**4. Index your first rulebook**
 
 ```
-User: /request
- Bot: 🖥️ What asset do you need?
-
-User: "I need a macbok pro for editing videos, its urgent"
- Bot: ✏️ (interpreted as: MacBook Pro)
-      📝 Why do you need this asset?
-
-User: "video editing for the new marketing campaign"
- Bot: 💰 Approximate cost in USD?
-
-User: "around 2k"
- Bot: 📋 Request Summary
-      Asset:     MacBook Pro
-      Reason:    video editing for the new marketing campaign
-      Urgency:   HIGH
-      Est. Cost: $2,000
-
-      Reply Yes to submit · No to restart
-
-User: yes
- Bot: ✅ Decision: APPROVED
-      Request ID: A1B2C3D4
-      AI Confidence: ██████████ 94%
-      Reasoning: MacBook Pro is within the $3,500 laptop budget...
-      Policy References:
-        • Section 4.2 — Laptop Procurement Policy
+/upload_rulebook   →   Send your company policy PDF
 ```
 
----
-
-## 🛡️ Security Details
-
-### Layer 1 — Suspicion Scorer (every message)
-
-| Signal | Weight | What it detects |
-|---|---|---|
-| Regex blacklist | 30% | 20 hardcoded jailbreak / injection / exfil patterns |
-| Soft injection probes | 25% | System-prompt manipulation, role spoofing |
-| Entropy anomaly | 15% | Base64 / compressed payloads hidden in messages |
-| Unicode obfuscation | 15% | RTL overrides, zero-width chars, Cyrillic-Latin mix |
-| Rate abuse | 15% | Burst flooding (>12 messages/minute) |
-| **Groq LLM judge** | 40% blend | Grey-zone arbitration (score 0.28–0.72 only) |
-
-### Layer 2 — NLP Injection Detection (per slot)
-
-The extractor runs `injection_risk` assessment on **every single slot fill** — completely independent of Layer 1. This catches adversarial inputs that look benign at the message level but attempt manipulation within the slot context.
-
-### Database Audit Trail
-
-Every decision, quarantine event, and security freeze is immutably logged:
-
-```sql
-security_events  -- quarantine + freeze events with full signal breakdown
-audit_log        -- every APPROVED/REJECTED/NEEDS_REVIEW decision
-```
-
----
-
-## ⚙️ Configuration Reference
-
-```dotenv
-# Required
-BOT_TOKEN=                    # From @BotFather
-GROQ_API_KEY=                 # From console.groq.com
-ADMIN_USER_IDS=               # Comma-separated Telegram user IDs
-
-# Security tuning
-SUSPICION_THRESHOLD=0.55      # 0.0–1.0; above this → quarantine
-
-# RAG tuning  
-RAG_TOP_K=4                   # Policy chunks per query
-
-# Paths (change for Docker volumes)
-CHROMA_PERSIST_DIR=./chroma_store
-RULEBOOKS_DIR=./rulebooks
-DB_PATH=./data/mugen.db
-
-# Logging
-LOG_LEVEL=INFO                # DEBUG | INFO | WARNING | ERROR
-```
-
----
-
-## 🗺️ Roadmap
-
-- [x] **Stage 1** — Foundation, suspicion scorer, security middleware
-- [x] **Stage 2** — NLP extractor, confidence thresholding, ConversationHandler, injection freeze
-- [ ] **Stage 3** — HRIS validation, budget entitlement checks, policy Q&A mode
-- [ ] **Stage 4** — Admin dashboard (`/admin_stats`, `/admin_pending`, adjudication commands)
-- [ ] **Stage 5** — Webhook mode, Redis-backed rate limiter, Prometheus metrics
-
----
-
-## 🤝 Contributing
-
-Pull requests are welcome. For major changes, please open an issue first.
+The bot will validate, extract, chunk (400/60), embed, and store it. Future requests are automatically graded against it.
 
 ---
 
 <div align="center">
 
-Built with ⚡ by the MUGEN AI team · Powered by [Groq](https://groq.com) · [LLaMA 3.3 · 70B](https://ai.meta.com/llama/)
+## 🛡️ Security Reference
+
+### Layer 1 — Suspicion Scorer
+
+| Signal | Weight | Detects |
+|:---:|:---:|:---|
+| Regex blacklist | 30% | 20 jailbreak / injection / exfil patterns |
+| Injection probes | 25% | System-prompt manipulation, role spoofing |
+| Entropy anomaly | 15% | Base64 / compressed payloads in messages |
+| Unicode obfuscation | 15% | RTL overrides, zero-width chars, Cyrillic mix |
+| Rate abuse | 15% | Burst flooding (> 12 msg / min sliding window) |
+| Groq LLM judge | 40% blend | Grey-zone arbitration (score 0.28–0.72 only) |
+
+### Layer 2 — NLP Injection Detection
+
+Every slot extraction independently evaluates `injection_risk` on the raw message. Detects adversarial inputs that appear benign at the message level but attempt manipulation within the slot context.
+
+</div>
+
+---
+
+<div align="center">
+
+## ⚙️ Configuration
+
+| Variable | Default | Description |
+|:---:|:---:|:---|
+| `BOT_TOKEN` | _(required)_ | From @BotFather |
+| `GROQ_API_KEY` | _(required)_ | From console.groq.com |
+| `ADMIN_USER_IDS` | _(required)_ | Comma-separated Telegram user IDs |
+| `SUSPICION_THRESHOLD` | `0.55` | Score above this → quarantine |
+| `RAG_TOP_K` | `4` | Policy chunks per query (overridden to 3 in Stage 3) |
+| `CHROMA_PERSIST_DIR` | `./chroma_store` | Vector DB storage path |
+| `RULEBOOKS_DIR` | `./rulebooks` | PDF upload directory |
+| `DB_PATH` | `./data/mugen.db` | SQLite database path |
+| `LOG_LEVEL` | `INFO` | `DEBUG` · `INFO` · `WARNING` · `ERROR` |
+
+</div>
+
+---
+
+<div align="center">
+
+## 🗺️ Roadmap
+
+| Stage | Status | What |
+|:---:|:---:|:---|
+| 1 | ✅ Done | Foundation · 6-signal suspicion scorer · security middleware |
+| 2 | ✅ Done | NLP extractor · confidence thresholding · ConversationHandler · injection freeze |
+| 3 | ✅ Done | PDF RAG pipeline · A–D grading · graded decision engine |
+| 4 | 🔲 Next | HRIS validation · budget entitlement · policy Q&A mode |
+| 5 | 🔲 | Admin dashboard (`/admin_stats`, `/admin_pending`, adjudication) |
+| 6 | 🔲 | Webhook mode · Redis rate limiter · Prometheus metrics |
+
+<br/>
+
+---
+
+Built with ⚡ — Powered by [Groq](https://groq.com) · [LLaMA 3.3 · 70B](https://ai.meta.com/llama/) · [ChromaDB](https://trychroma.com) · [python-telegram-bot v20](https://python-telegram-bot.org)
 
 </div>

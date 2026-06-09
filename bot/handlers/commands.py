@@ -50,16 +50,18 @@ Hello, *{name}*! I'm your enterprise asset-request agent.
 
 Here's what I can do:
 • 📦 Process asset requests with full policy validation
-• 📜 Answer policy questions from your company rulebook
-• 🔍 Track the status of your requests in real-time
-• 🛡️ Every interaction passes through multi-layer security
+• 📜 Query your company rulebook via live RAG pipeline
+• 🔍 Track request status in real-time
+• 🧩 Top-3 graded policy chunks inform every decision
+• 🛡️ Every message passes through 6-signal security
 
 *Commands*
-`/request`         — Start a new asset request
-`/status <id>`     — Check an existing request
-`/cancel`          — Cancel current request
+`/request`           — Start a new asset request
+`/status <id>`       — Check an existing request
+`/cancel`            — Cancel current request
+`/upload_rulebook`   — _(Admin)_ Index a policy PDF
 
-_Powered by LLaMA 3.3 · 70B · Groq_
+_Powered by LLaMA 3.3 · 70B · Groq + ChromaDB RAG_
 """
 
 
@@ -145,6 +147,8 @@ async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def handle_upload_rulebook(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
+    from bot.rag.retriever import get_indexed_sources, has_rulebook
+
     user = update.effective_user
 
     if not _is_admin(user.id):
@@ -156,10 +160,20 @@ async def handle_upload_rulebook(
         return
 
     context.user_data["awaiting_rulebook"] = True
+
+    # Show currently indexed sources
+    if has_rulebook():
+        sources = get_indexed_sources()
+        source_list = "\n".join(f"  • `{s}`" for s in sources) or "  _None yet_"
+        indexed_block = f"\n\n*Currently indexed rulebooks:*\n{source_list}"
+    else:
+        indexed_block = "\n\n_No rulebooks indexed yet — this will be the first._"
+
     await update.message.reply_text(
         "📚 *Admin — Rulebook Upload*\n\n"
-        "Please send the policy PDF now.\n"
-        "_Supported: single PDF up to 50 MB_",
+        "Send a policy PDF to index it into the RAG store.\n"
+        "_Supported: PDF up to 50 MB · Duplicates are detected automatically_"
+        + indexed_block,
         parse_mode=ParseMode.MARKDOWN,
     )
     log.info("awaiting_rulebook_pdf", admin_id=user.id)
@@ -172,14 +186,14 @@ async def handle_upload_rulebook(
 async def handle_document(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> None:
-    from bot.rag.pdf_loader import ingest_pdf
+    from bot.rag.pdf_loader import IngestionReport, ingest_pdf
 
     user = update.effective_user
     awaiting = (context.user_data or {}).get("awaiting_rulebook", False)
 
     if not awaiting:
         await update.message.reply_text(
-            "📎 To upload a rulebook, first use `/upload_rulebook`.",
+            "📎 To upload a rulebook, use `/upload_rulebook` first.",
             parse_mode=ParseMode.MARKDOWN,
         )
         return
@@ -190,35 +204,63 @@ async def handle_document(
 
     doc: Document = update.message.document
     if not doc.file_name.lower().endswith(".pdf"):
-        await update.message.reply_text("❌ Only PDF files are accepted.")
+        await update.message.reply_text(
+            "❌ Only PDF files are accepted. Please send a `.pdf` document."
+        )
         return
 
-    await update.message.reply_text(
-        "⏳ Downloading and indexing the rulebook… this may take a moment.",
+    # Acknowledge immediately — ingestion can take several seconds
+    status_msg = await update.message.reply_text(
+        "⏳ *Downloading PDF…*",
         parse_mode=ParseMode.MARKDOWN,
     )
 
     try:
-        # Download the file
+        # ── Download from Telegram ────────────────────────────────────────────
         tg_file = await context.bot.get_file(doc.file_id)
         dest = settings.rulebooks_dir / doc.file_name
         await tg_file.download_to_drive(str(dest))
 
-        # Ingest into ChromaDB
-        chunk_count = await ingest_pdf(dest)
-
-        context.user_data["awaiting_rulebook"] = False
-        await update.message.reply_text(
-            f"✅ *Rulebook indexed successfully!*\n\n"
-            f"File: `{doc.file_name}`\n"
-            f"Chunks stored: `{chunk_count}`",
+        await status_msg.edit_text(
+            "⏳ *PDF downloaded. Extracting text and building vectors…*\n"
+            "_This may take 10–60 seconds depending on file size._",
             parse_mode=ParseMode.MARKDOWN,
         )
-        log.info("rulebook_ingested", file=doc.file_name, chunks=chunk_count)
+
+        # ── Ingest into ChromaDB (Stage 3 pipeline) ───────────────────────────
+        report: IngestionReport = await ingest_pdf(
+            pdf_path=dest,
+            admin_id=user.id,
+        )
+
+        context.user_data["awaiting_rulebook"] = False
+
+        # Pretty-print the IngestionReport
+        reply = (
+            f"📚 *Rulebook Ingestion Report*\n\n"
+            + str(report)
+        )
+        await status_msg.edit_text(reply, parse_mode=ParseMode.MARKDOWN)
+        log.info(
+            "rulebook_ingested",
+            file=doc.file_name,
+            chunks=report.chunks_created,
+            duplicate=report.was_duplicate,
+            admin=user.id,
+        )
+
+    except ValueError as exc:
+        # Validation errors (bad file, too large, no text, etc.)
+        await status_msg.edit_text(
+            f"❌ *Ingestion failed — validation error*\n\n`{exc}`",
+            parse_mode=ParseMode.MARKDOWN,
+        )
+        log.warning("rulebook_validation_failed", error=str(exc))
 
     except Exception as exc:
         log.error("rulebook_ingest_failed", error=str(exc))
-        await update.message.reply_text(
-            "❌ Failed to index the rulebook. Check logs for details.",
+        await status_msg.edit_text(
+            "❌ *Ingestion failed — internal error.*\n"
+            "Please check server logs for details.",
             parse_mode=ParseMode.MARKDOWN,
         )
