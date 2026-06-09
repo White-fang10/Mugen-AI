@@ -33,13 +33,12 @@ from telegram.ext import (
 from bot.config import get_settings
 from bot.db.schema import init_db
 from bot.handlers.commands import (
-    handle_request,
     handle_start,
     handle_upload_rulebook,
     handle_status,
     handle_cancel,
 )
-from bot.handlers.messages import handle_message
+from bot.handlers.conversation import build_request_conversation
 from bot.security.scorer import SuspicionResult, score_message
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -188,21 +187,28 @@ def build_application() -> Application:
         group=-999,
     )
 
-    # ── Command handlers ──────────────────────────────────────────────────────
+    # ── Stage 2: ConversationHandler for /request flow ───────────────────────
+    # Must be registered BEFORE standalone command handlers so PTB routes
+    # messages inside an active conversation to the correct state handler.
+    app.add_handler(build_request_conversation())
+
+    # ── Standalone command handlers ───────────────────────────────────────────
     app.add_handler(CommandHandler("start",           handle_start))
-    app.add_handler(CommandHandler("request",         handle_request))
     app.add_handler(CommandHandler("status",          handle_status))
     app.add_handler(CommandHandler("cancel",          handle_cancel))
     app.add_handler(CommandHandler("upload_rulebook", handle_upload_rulebook))
 
-    # ── Catch-all message handler (slot filling / conversation flow) ──────────
-    app.add_handler(
-        MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message)
-    )
-
     # ── Document handler (for rulebook PDF uploads) ───────────────────────────
     from bot.handlers.commands import handle_document
     app.add_handler(MessageHandler(filters.Document.PDF, handle_document))
+
+    # ── Catch-all: messages outside any active conversation ───────────────────
+    async def _orphan_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+        await update.message.reply_text(
+            "💬 Use /request to start an asset request, or /start to see all commands.",
+            parse_mode="Markdown",
+        )
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, _orphan_message))
 
     return app
 
@@ -227,7 +233,7 @@ async def _on_startup(app: Application) -> None:
 
 def main() -> None:
     _configure_logging(settings.log_level)
-    log.info("booting_mugen_ai", version="1.0.0")
+    log.info("booting_mugen_ai", version="2.0.0")
 
     app = build_application()
 

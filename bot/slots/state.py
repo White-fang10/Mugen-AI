@@ -1,135 +1,292 @@
 """
 bot/slots/state.py
 ─────────────────────────────────────────────────────────────────────────────
-MUGEN AI — Slot Machine (Conversation State Manager)
+MUGEN AI — Stage 2: Upgraded Slot Machine with Confidence Gating
 ══════════════════════════════════════════════════════════════════════════════
-Implements a finite-state conversation that progressively fills all required
-slots for an asset request, then passes the completed form to the decision
-engine for LLM-powered policy validation.
 
-States
-──────
-  COLLECTING  →  slots being gathered via NLP extractor
-  CONFIRMING  →  summary shown, waiting for yes/no
-  DECIDING    →  decision engine running
-  DONE        →  terminal; result delivered
+New in Stage 2
+──────────────
+  • Uses extract_slot() (returns ExtractionResult) instead of bare dicts.
+  • Confidence thresholding:
+      ≥ 0.70  → accepted, move to next slot
+      0.40–0.69 → low confidence → bot re-asks with a gentle hint
+      < 0.40  → failed → bot re-asks with the original prompt
+  • injection_risk == "high" → session is FROZEN immediately:
+      - State transitions to FROZEN (terminal)
+      - Security event logged to DB
+      - User notified with a firm, informative message
+      - The slot machine will refuse further input
+  • Tracks retry counts per slot to prevent infinite loops (max 3 retries).
+  • Exposes `frozen` property so the ConversationHandler can end the conv.
+
+State machine
+─────────────
+  COLLECTING  ──extract_slot()──▶ COLLECTING (next slot)
+      │                              │
+      │ (all slots filled)           │ (injection_risk=high)
+      ▼                              ▼
+  CONFIRMING ──yes──▶ DECIDING    FROZEN (terminal)
+      │                 │
+      │ no              ▼
+      └──────────▶  COLLECTING  DONE (terminal)
 """
 
 from __future__ import annotations
 
+import asyncio
 from enum import Enum
 from typing import Any, Dict, Optional
 
 import structlog
 
-from bot.slots.extractor import extract_slots
+from bot.slots.extractor import CONFIDENCE_THRESHOLD, ExtractionResult, extract_slot
 
 log = structlog.get_logger(__name__)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Constants
+# ─────────────────────────────────────────────────────────────────────────────
+
+MAX_RETRIES_PER_SLOT = 3   # after this, slot is skipped with a default
+
+# ─────────────────────────────────────────────────────────────────────────────
+# State enum
+# ─────────────────────────────────────────────────────────────────────────────
 
 class ConversationState(str, Enum):
     COLLECTING = "COLLECTING"
     CONFIRMING = "CONFIRMING"
     DECIDING   = "DECIDING"
+    FROZEN     = "FROZEN"      # 🆕 injection freeze terminal state
     DONE       = "DONE"
 
 
-# Ordered list of slots and their friendly prompts
+# ─────────────────────────────────────────────────────────────────────────────
+# Slot definitions
+# ─────────────────────────────────────────────────────────────────────────────
+
 _SLOT_PROMPTS: list[tuple[str, str]] = [
-    ("asset_name",      "🖥️ *What asset do you need?*\n_e.g. MacBook Pro 14\", Logitech MX Keys_"),
-    ("justification",   "📝 *Why do you need this asset?*\n_Brief business justification_"),
-    ("urgency",         "⏱️ *How urgent is this?*\n_Reply: HIGH / NORMAL / LOW_"),
-    ("cost_estimate",   "💰 *Approximate cost? (USD)*\n_Enter a number, or type 'unknown'_"),
+    (
+        "asset_name",
+        "🖥️ *What asset do you need?*\n"
+        "_e.g. MacBook Pro 14\", Dell Latitude 5540, Logitech MX Keys_",
+    ),
+    (
+        "justification",
+        "📝 *Why do you need this asset?*\n"
+        "_Brief business justification — e.g. 'Replace broken laptop for video editing'_",
+    ),
+    (
+        "urgency",
+        "⏱️ *How urgent is this request?*\n"
+        "_Reply with_ `HIGH` _(ASAP)_ · `NORMAL` _(standard)_ · `LOW` _(whenever)_",
+    ),
+    (
+        "cost_estimate",
+        "💰 *Approximate cost in USD?*\n"
+        "_Enter a number like_ `1500` _or_ `2k`_, or type_ `unknown`",
+    ),
 ]
 
-_REQUIRED_SLOTS = {k for k, _ in _SLOT_PROMPTS}
+_SLOT_NAMES = [s for s, _ in _SLOT_PROMPTS]
+_SLOT_PROMPT_MAP = dict(_SLOT_PROMPTS)
+_REQUIRED_SLOTS = set(_SLOT_NAMES)
 
+# Low-confidence re-ask templates (appended after the original prompt)
+_LOW_CONF_HINT: Dict[str, str] = {
+    "asset_name":    "🤔 I didn't quite catch the product name. Could you be more specific?\n_e.g. 'MacBook Pro 14\" M3' or 'Dell XPS 15'_",
+    "justification": "🤔 Could you clarify why you need this? A brief business reason helps the approval process.",
+    "urgency":       "🤔 Please reply with exactly `HIGH`, `NORMAL`, or `LOW`.",
+    "cost_estimate": "🤔 I couldn't parse that as a price. Try something like `1500`, `2k`, or `unknown`.",
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Slot Machine
+# ─────────────────────────────────────────────────────────────────────────────
 
 class SlotMachine:
-    """Manages multi-turn conversation state for a single asset request."""
+    """
+    Finite-state conversation manager for a single asset request session.
 
-    def __init__(self, user_id: int) -> None:
-        self.user_id  = user_id
-        self.state    = ConversationState.COLLECTING
+    Usage (from ConversationHandler)
+    ---------------------------------
+        machine = SlotMachine(user_id=user_id)
+        context.user_data["slot_machine"] = machine
+
+        response = await machine.process(text)
+        if machine.frozen:
+            # End the conversation immediately
+        elif machine.done:
+            # Clean up, end conversation
+    """
+
+    def __init__(self, user_id: int, session_id: int = 0) -> None:
+        self.user_id    = user_id
+        self.session_id = session_id
+        self.state      = ConversationState.COLLECTING
         self.slots: Dict[str, Any] = {}
-        self._pending_slot_idx = 0  # which slot we're currently collecting
+        # Retry tracker: how many times each slot has been re-asked
+        self._retries: Dict[str, int] = {s: 0 for s in _SLOT_NAMES}
+        # Last extraction result (exposed for debugging / admin logs)
+        self.last_result: Optional[ExtractionResult] = None
 
-    # ── Public API ────────────────────────────────────────────────────────────
+    # ── Public interface ──────────────────────────────────────────────────────
+
+    @property
+    def frozen(self) -> bool:
+        return self.state == ConversationState.FROZEN
+
+    @property
+    def done(self) -> bool:
+        return self.state == ConversationState.DONE
+
+    @property
+    def active_slot(self) -> Optional[str]:
+        """Return the name of the slot currently being collected."""
+        for name in _SLOT_NAMES:
+            if name not in self.slots:
+                return name
+        return None
 
     async def process(self, text: str) -> str:
         """
-        Main entry-point called by handle_message.
-        Routes text to the correct handler based on current state.
+        Main entry-point: route text to the correct state handler.
+
+        Always returns a string reply for the bot to send.
+        Callers should check `.frozen` and `.done` after each call.
         """
+        if self.state == ConversationState.FROZEN:
+            return (
+                "🔒 *This session has been frozen by MUGEN AI's security system.*\n"
+                "Start a fresh request with /request — suspicious activity has been logged."
+            )
+        if self.state == ConversationState.DONE:
+            return "✅ Your request has already been submitted. Use /request to start a new one."
         if self.state == ConversationState.COLLECTING:
             return await self._collect(text)
         if self.state == ConversationState.CONFIRMING:
             return await self._confirm(text)
         if self.state == ConversationState.DECIDING:
-            return "⏳ Decision in progress, please wait…"
-        return "✅ Your request has already been submitted."
+            return "⏳ Your request is being evaluated… please wait."
 
-    @property
-    def is_complete(self) -> bool:
-        return _REQUIRED_SLOTS.issubset(self.slots)
+        return "❓ Unexpected state. Use /cancel to reset."
 
-    # ── Private state handlers ────────────────────────────────────────────────
+    def get_opening_prompt(self) -> str:
+        """Return the prompt for the first slot (used after /request)."""
+        return _SLOT_PROMPT_MAP["asset_name"]
+
+    # ── State handlers ────────────────────────────────────────────────────────
 
     async def _collect(self, text: str) -> str:
-        """Extract slot values from free-text using the NLP extractor."""
-        # Try to extract any slots from the message
-        extracted = await extract_slots(text, current_slot=self._current_slot_name())
-        self.slots.update({k: v for k, v in extracted.items() if v is not None})
-
-        # Advance to next missing slot
-        missing = self._next_missing_slot()
-        if missing:
-            slot_name, prompt = missing
-            return prompt
-        else:
-            # All slots filled — move to confirmation
+        """Extract the current active slot, apply confidence gating."""
+        slot = self.active_slot
+        if slot is None:
+            # All slots filled — advance to confirmation
             self.state = ConversationState.CONFIRMING
             return self._build_summary()
 
-    async def _confirm(self, text: str) -> str:
-        """Handle yes/no confirmation."""
-        lower = text.lower().strip()
-        affirmative = any(w in lower for w in ["yes", "confirm", "ok", "proceed", "y", "sure"])
-        negative    = any(w in lower for w in ["no", "cancel", "abort", "n", "stop"])
+        result = await extract_slot(slot_name=slot, text=text)
+        self.last_result = result
 
-        if affirmative:
+        # ── 🚨 Injection risk: HIGH → freeze immediately ───────────────────────
+        if result.injection_risk == "high":
+            return await self._freeze(result)
+
+        # ── Low risk warning (non-blocking) ───────────────────────────────────
+        if result.injection_risk == "low":
+            log.warning(
+                "low_injection_risk_flagged",
+                user_id=self.user_id,
+                slot=slot,
+                snippet=text[:100],
+            )
+            asyncio.create_task(self._log_security("LOW_RISK", result))
+
+        # ── Confidence gating ─────────────────────────────────────────────────
+        if result.accepted:
+            # ✅ Good extraction — store the slot value
+            corrected_notice = ""
+            if result.corrected_text:
+                corrected_notice = (
+                    f"\n✏️ _(I interpreted that as: *{result.corrected_text}*)_"
+                )
+
+            self.slots[slot] = result.value
+            self._retries[slot] = 0
+
+            # Move to next slot or confirmation
+            next_slot = self.active_slot
+            if next_slot is None:
+                self.state = ConversationState.CONFIRMING
+                return corrected_notice + "\n\n" + self._build_summary() if corrected_notice else self._build_summary()
+
+            return corrected_notice + "\n\n" + _SLOT_PROMPT_MAP[next_slot] if corrected_notice else _SLOT_PROMPT_MAP[next_slot]
+
+        # ── Below threshold ───────────────────────────────────────────────────
+        self._retries[slot] = self._retries.get(slot, 0) + 1
+
+        if self._retries[slot] >= MAX_RETRIES_PER_SLOT:
+            # Skip slot after max retries (use None as default)
+            log.warning("slot_max_retries_reached", slot=slot, user_id=self.user_id)
+            self.slots[slot] = None
+            self._retries[slot] = 0
+            next_slot = self.active_slot
+            if next_slot is None:
+                self.state = ConversationState.CONFIRMING
+                return self._build_summary()
+            return (
+                f"⏭️ _{slot.replace('_', ' ').title()} skipped after multiple attempts._\n\n"
+                + _SLOT_PROMPT_MAP[next_slot]
+            )
+
+        # Re-ask based on confidence band
+        if result.confidence >= 0.40:
+            # Low-confidence — give a helpful hint
+            return (
+                f"🔍 _(Confidence: {result.confidence:.0%} — let me double-check)_\n\n"
+                + _LOW_CONF_HINT[slot]
+            )
+        else:
+            # Very low — standard re-ask
+            return (
+                f"❓ I couldn't extract that. Let's try again.\n\n"
+                + _SLOT_PROMPT_MAP[slot]
+            )
+
+    async def _confirm(self, text: str) -> str:
+        """Parse yes/no and either proceed to decision or reset."""
+        lower = text.lower().strip()
+        yes = any(w in lower for w in ["yes", "confirm", "ok", "proceed", "y", "sure", "go", "submit"])
+        no  = any(w in lower for w in ["no", "cancel", "abort", "n", "stop", "restart", "reset"])
+
+        if yes:
             self.state = ConversationState.DECIDING
             return await self._run_decision()
 
-        if negative:
+        if no:
             self.state = ConversationState.COLLECTING
             self.slots.clear()
-            self._pending_slot_idx = 0
-            return (
-                "🔄 Request reset. Let's start over.\n\n"
-                + _SLOT_PROMPTS[0][1]
-            )
+            self._retries = {s: 0 for s in _SLOT_NAMES}
+            return "🔄 *Request reset.* Let's start fresh.\n\n" + _SLOT_PROMPT_MAP["asset_name"]
 
         return (
-            "❓ Please reply with *Yes* to confirm or *No* to restart.\n\n"
+            "❓ Please reply with *Yes* to submit or *No* to restart.\n\n"
             + self._build_summary()
         )
 
     async def _run_decision(self) -> str:
-        """Call the decision engine and format the result."""
+        """Call the decision engine and return a formatted verdict."""
         try:
+            from bot.db.repository import append_audit, create_request, update_request_decision
             from bot.validation.decision import evaluate_request
-            from bot.db.repository import create_request, update_request_decision, append_audit
 
-            # Persist the request
-            session_id = 0  # placeholder; real session_id injected via user_data
             req_id = await create_request(
-                session_id=session_id,
+                session_id=self.session_id,
                 user_id=self.user_id,
                 slots=self.slots,
             )
 
-            # Run policy evaluation
             verdict = await evaluate_request(self.slots)
             await update_request_decision(
                 request_id=req_id,
@@ -141,45 +298,88 @@ class SlotMachine:
 
             self.state = ConversationState.DONE
 
-            emoji = "✅" if verdict.status == "APPROVED" else (
-                "🔍" if verdict.status == "NEEDS_REVIEW" else "❌"
+            icon = {"APPROVED": "✅", "NEEDS_REVIEW": "🔍", "REJECTED": "❌"}.get(verdict.status, "❓")
+            refs = (
+                "\n".join(f"  • _{r}_" for r in verdict.policy_refs)
+                if verdict.policy_refs
+                else "  _No specific clauses cited._"
             )
-            refs = "\n".join(f"  • _{r}_" for r in verdict.policy_refs) if verdict.policy_refs else "  _None cited_"
+            conf_bar = "█" * int(verdict.confidence * 10) + "░" * (10 - int(verdict.confidence * 10))
 
             return (
-                f"{emoji} *Decision: {verdict.status}*\n\n"
-                f"*Request ID:* `{req_id}`\n\n"
+                f"{icon} *Decision: {verdict.status}*\n\n"
+                f"*Request ID:* `{req_id}`\n"
+                f"*AI Confidence:* `{conf_bar}` {verdict.confidence:.0%}\n\n"
                 f"*Reasoning:*\n{verdict.reason}\n\n"
                 f"*Policy References:*\n{refs}\n\n"
-                f"_Use `/status {req_id}` to track this request._"
+                f"_Track anytime with_ `/status {req_id}`"
             )
 
         except Exception as exc:
             log.error("decision_failed", error=str(exc), user_id=self.user_id)
             self.state = ConversationState.DONE
-            return "❌ An error occurred during evaluation. Please try again later."
+            return "❌ Decision engine error. Request escalated for manual review."
 
-    # ── Helpers ───────────────────────────────────────────────────────────────
+    # ── Security helpers ──────────────────────────────────────────────────────
 
-    def _current_slot_name(self) -> Optional[str]:
-        if self._pending_slot_idx < len(_SLOT_PROMPTS):
-            return _SLOT_PROMPTS[self._pending_slot_idx][0]
-        return None
+    async def _freeze(self, result: ExtractionResult) -> str:
+        """
+        Transition to FROZEN state and log the security event.
+        Called when injection_risk == "high" is detected during slot extraction.
+        """
+        self.state = ConversationState.FROZEN
+        log.critical(
+            "session_frozen_injection_detected",
+            user_id=self.user_id,
+            session_id=self.session_id,
+            slot=result.slot_name,
+            snippet=result.raw_input[:120],
+        )
+        asyncio.create_task(self._log_security("INJECTION_FREEZE", result))
 
-    def _next_missing_slot(self) -> Optional[tuple[str, str]]:
-        for slot_name, prompt in _SLOT_PROMPTS:
-            if slot_name not in self.slots:
-                return slot_name, prompt
-        return None
+        return (
+            "🔒 *Session Frozen — Security Alert*\n\n"
+            "MUGEN AI's NLP layer detected a potential prompt-injection or "
+            "policy-bypass attempt in your last message.\n\n"
+            "This session has been *permanently frozen* and the event has "
+            "been logged for administrator review.\n\n"
+            "If this was a mistake, please contact your IT administrator.\n\n"
+            "🆔 `FREEZE-{uid}`".format(uid=self.user_id)
+        )
+
+    async def _log_security(self, event_type: str, result: ExtractionResult) -> None:
+        try:
+            from bot.db.repository import log_security_event
+            await log_security_event(
+                user_id=self.user_id,
+                event_type=event_type,
+                score=result.confidence,
+                signals={
+                    "injection_risk": result.injection_risk,
+                    "slot": result.slot_name,
+                    "confidence": result.confidence,
+                },
+                snippet=result.raw_input[:500],
+            )
+        except Exception as exc:
+            log.error("security_log_failed", error=str(exc))
+
+    # ── UI helpers ────────────────────────────────────────────────────────────
 
     def _build_summary(self) -> str:
-        cost = self.slots.get("cost_estimate", "Unknown")
-        cost_str = f"${cost:,.0f}" if isinstance(cost, (int, float)) else str(cost)
+        cost = self.slots.get("cost_estimate")
+        cost_str = f"${cost:,.0f}" if isinstance(cost, (int, float)) else (str(cost) if cost else "Unknown")
+
+        urgency_icon = {"HIGH": "🔴", "NORMAL": "🟡", "LOW": "🟢"}.get(
+            str(self.slots.get("urgency", "")).upper(), "⚪"
+        )
+
         return (
-            "📋 *Request Summary*\n\n"
-            f"Asset: `{self.slots.get('asset_name', '—')}`\n"
-            f"Justification: _{self.slots.get('justification', '—')}_\n"
-            f"Urgency: `{self.slots.get('urgency', '—')}`\n"
-            f"Est. Cost: `{cost_str}`\n\n"
-            "Type *Yes* to submit or *No* to restart."
+            "📋 *Request Summary — please review before submitting*\n\n"
+            f"🖥️  Asset      : `{self.slots.get('asset_name') or '—'}`\n"
+            f"📝  Reason     : _{self.slots.get('justification') or '—'}_\n"
+            f"{urgency_icon}  Urgency    : `{self.slots.get('urgency') or '—'}`\n"
+            f"💰  Est. Cost  : `{cost_str}`\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "Reply *Yes* to submit · *No* to restart"
         )

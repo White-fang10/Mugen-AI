@@ -73,34 +73,8 @@ async def handle_start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
     log.info("cmd_start", user_id=user.id if user else None)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# /request
-# ─────────────────────────────────────────────────────────────────────────────
-
-async def handle_request(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Initiate the multi-turn asset-request slot-filling flow."""
-    from bot.slots.state import ConversationState, SlotMachine
-    from bot.db.repository import upsert_session
-
-    user = update.effective_user
-    user_id = user.id
-
-    # Initialise a fresh slot machine for this user
-    machine = SlotMachine(user_id=user_id)
-    context.user_data["slot_machine"] = machine
-
-    session_id = await upsert_session(user_id=user_id, state=ConversationState.COLLECTING)
-    context.user_data["session_id"] = session_id
-
-    await update.message.reply_text(
-        "📋 *New Asset Request*\n\n"
-        "Great! Let's get started. I'll need a few details.\n\n"
-        "First — *what asset do you need?*\n"
-        "_e.g. MacBook Pro 14\", Dell Latitude 5540, Logitech MX Keys_",
-        parse_mode=ParseMode.MARKDOWN,
-    )
-    log.info("cmd_request_started", user_id=user_id, session_id=session_id)
-
+# NOTE: /request is now handled by the ConversationHandler in
+# bot/handlers/conversation.py → conv_start_request()
 
 # ─────────────────────────────────────────────────────────────────────────────
 # /status
