@@ -1,17 +1,249 @@
 {
-  "products": [
-    {"name": "MacBook Pro 14 M3 Pro", "category": "laptop",         "msrp": 1999, "vendor": "Apple"},
-    {"name": "MacBook Pro 16 M3 Max", "category": "laptop",         "msrp": 3499, "vendor": "Apple"},
-    {"name": "MacBook Air 15 M3",     "category": "laptop",         "msrp": 1299, "vendor": "Apple"},
-    {"name": "Dell Latitude 5540",    "category": "laptop",         "msrp": 1149, "vendor": "Dell"},
-    {"name": "ThinkPad X1 Carbon",    "category": "laptop",         "msrp": 1549, "vendor": "Lenovo"},
-    {"name": "Dell UltraSharp 27\"",  "category": "monitor",        "msrp": 699,  "vendor": "Dell"},
-    {"name": "LG 27UK850-W 4K",       "category": "monitor",        "msrp": 549,  "vendor": "LG"},
-    {"name": "Logitech MX Keys",      "category": "keyboard_mouse", "msrp": 99,   "vendor": "Logitech"},
-    {"name": "Logitech MX Master 3",  "category": "keyboard_mouse", "msrp": 99,   "vendor": "Logitech"},
-    {"name": "Sony WH-1000XM5",       "category": "headset",        "msrp": 349,  "vendor": "Sony"},
-    {"name": "Bose QuietComfort 45",  "category": "headset",        "msrp": 279,  "vendor": "Bose"},
-    {"name": "iPhone 15 Pro",         "category": "mobile_phone",   "msrp": 999,  "vendor": "Apple"},
-    {"name": "Samsung Galaxy S24",    "category": "mobile_phone",   "msrp": 899,  "vendor": "Samsung"}
-  ]
+  "version": "2025-Q1",
+  "catalog": [
+    {
+      "id": "LAP-001",
+      "name": "Apple MacBook Pro 14\" M3 Pro",
+      "category": "laptop",
+      "vendor": "Apple",
+      "price": 1999,
+      "stock_count": 8,
+      "min_grade": "IC3",
+      "description": "14-inch Liquid Retina XDR, M3 Pro chip, 18GB RAM, 512GB SSD. Preferred for engineering and design roles.",
+      "tags": ["macOS", "engineering", "design", "video-editing"]
+    },
+    {
+      "id": "LAP-002",
+      "name": "Apple MacBook Pro 16\" M3 Max",
+      "category": "laptop",
+      "vendor": "Apple",
+      "price": 3499,
+      "stock_count": 3,
+      "min_grade": "IC5",
+      "description": "16-inch, M3 Max chip, 36GB RAM, 1TB SSD. High-compute tasks: ML, video, 3D rendering.",
+      "tags": ["macOS", "ML", "3D", "video-editing", "high-compute"]
+    },
+    {
+      "id": "LAP-003",
+      "name": "Apple MacBook Air 15\" M3",
+      "category": "laptop",
+      "vendor": "Apple",
+      "price": 1299,
+      "stock_count": 14,
+      "min_grade": "IC2",
+      "description": "15-inch, M3 chip, 8GB RAM, 256GB SSD. Lightweight daily driver for non-compute-heavy roles.",
+      "tags": ["macOS", "general-use", "lightweight"]
+    },
+    {
+      "id": "LAP-004",
+      "name": "Dell Latitude 5540",
+      "category": "laptop",
+      "vendor": "Dell",
+      "price": 1149,
+      "stock_count": 11,
+      "min_grade": "IC2",
+      "description": "15.6-inch FHD, Intel Core i5-1345U, 16GB RAM, 512GB SSD. Business-grade Windows laptop.",
+      "tags": ["windows", "business", "general-use"]
+    },
+    {
+      "id": "LAP-005",
+      "name": "Lenovo ThinkPad X1 Carbon Gen 11",
+      "category": "laptop",
+      "vendor": "Lenovo",
+      "price": 1649,
+      "stock_count": 6,
+      "min_grade": "IC3",
+      "description": "14-inch 2.8K OLED, Intel Core i7-1365U, 16GB RAM, 512GB SSD. Ultra-light premium business laptop.",
+      "tags": ["windows", "business", "ultra-light"]
+    },
+    {
+      "id": "LAP-006",
+      "name": "HP EliteBook 840 G10",
+      "category": "laptop",
+      "vendor": "HP",
+      "price": 1099,
+      "stock_count": 9,
+      "min_grade": "IC2",
+      "description": "14-inch FHD IPS, Intel Core i5-1345U, 16GB RAM, 512GB SSD. Durable enterprise-grade Windows laptop.",
+      "tags": ["windows", "business", "durable"]
+    },
+    {
+      "id": "MON-001",
+      "name": "Dell UltraSharp 27\" 4K (U2723D)",
+      "category": "monitor",
+      "vendor": "Dell",
+      "price": 699,
+      "stock_count": 20,
+      "min_grade": "IC2",
+      "description": "27-inch 4K IPS, USB-C 90W, built-in KVM switch. Standard external monitor for desk setups.",
+      "tags": ["4K", "USB-C", "KVM"]
+    },
+    {
+      "id": "MON-002",
+      "name": "LG UltraWide 34\" Curved (34WP85C)",
+      "category": "monitor",
+      "vendor": "LG",
+      "price": 899,
+      "stock_count": 7,
+      "min_grade": "IC4",
+      "description": "34-inch WQHD IPS curved display, USB-C 96W, HDR10. For design and multi-window workflows.",
+      "tags": ["ultrawide", "curved", "design", "USB-C"]
+    },
+    {
+      "id": "MON-003",
+      "name": "BenQ PD3225U 4K Designer",
+      "category": "monitor",
+      "vendor": "BenQ",
+      "price": 1149,
+      "stock_count": 4,
+      "min_grade": "IC5",
+      "description": "32-inch 4K IPS, Pantone validated, 98% DCI-P3. Professional colour-critical design work.",
+      "tags": ["4K", "color-accurate", "design", "Pantone"]
+    },
+    {
+      "id": "PER-001",
+      "name": "Logitech MX Keys S",
+      "category": "keyboard",
+      "vendor": "Logitech",
+      "price": 109,
+      "stock_count": 35,
+      "min_grade": "IC1",
+      "description": "Full-size wireless keyboard, multi-device (3 devices), backlit. Compatible with Mac and Windows.",
+      "tags": ["wireless", "multi-device", "backlit"]
+    },
+    {
+      "id": "PER-002",
+      "name": "Logitech MX Master 3S",
+      "category": "mouse",
+      "vendor": "Logitech",
+      "price": 99,
+      "stock_count": 40,
+      "min_grade": "IC1",
+      "description": "Ergonomic wireless mouse, 8000 DPI, silent clicks, MagSpeed scroll wheel.",
+      "tags": ["wireless", "ergonomic", "silent"]
+    },
+    {
+      "id": "PER-003",
+      "name": "Sony WH-1000XM5 Headset",
+      "category": "headset",
+      "vendor": "Sony",
+      "price": 349,
+      "stock_count": 18,
+      "min_grade": "IC2",
+      "description": "Over-ear ANC wireless headset. 30hr battery, best-in-class noise cancellation for remote work.",
+      "tags": ["ANC", "wireless", "remote-work"]
+    },
+    {
+      "id": "PER-004",
+      "name": "Jabra Evolve2 85 UC",
+      "category": "headset",
+      "vendor": "Jabra",
+      "price": 449,
+      "stock_count": 10,
+      "min_grade": "IC3",
+      "description": "Professional ANC wireless headset, UC-certified, call-centre grade microphone quality.",
+      "tags": ["ANC", "wireless", "UC-certified", "professional"]
+    },
+    {
+      "id": "PHN-001",
+      "name": "Apple iPhone 15 Pro",
+      "category": "mobile_phone",
+      "vendor": "Apple",
+      "price": 999,
+      "stock_count": 5,
+      "min_grade": "M3",
+      "description": "6.1-inch Super Retina XDR, A17 Pro, 256GB. Approved for client-facing roles at manager level.",
+      "tags": ["iOS", "client-facing", "manager"]
+    },
+    {
+      "id": "PHN-002",
+      "name": "Samsung Galaxy S24+",
+      "category": "mobile_phone",
+      "vendor": "Samsung",
+      "price": 999,
+      "stock_count": 6,
+      "min_grade": "M3",
+      "description": "6.7-inch QHD+, Snapdragon 8 Gen 3, 256GB. Approved for client-facing roles at manager level.",
+      "tags": ["Android", "client-facing", "manager"]
+    },
+    {
+      "id": "LIC-001",
+      "name": "JetBrains All Products Pack (annual)",
+      "category": "software_license",
+      "vendor": "JetBrains",
+      "price": 699,
+      "stock_count": 999,
+      "min_grade": "IC2",
+      "description": "Full JetBrains IDE suite. Requires IT Security review for SaaS tools per procurement policy.",
+      "tags": ["IDE", "developer-tools", "SaaS", "annual"]
+    },
+    {
+      "id": "LIC-002",
+      "name": "Adobe Creative Cloud (annual, individual)",
+      "category": "software_license",
+      "vendor": "Adobe",
+      "price": 599,
+      "stock_count": 999,
+      "min_grade": "IC3",
+      "description": "Full Adobe CC suite. Requires IT Security review. Approved for design and marketing roles.",
+      "tags": ["design", "creative", "SaaS", "annual"]
+    },
+    {
+      "id": "LIC-003",
+      "name": "GitHub Enterprise (per seat, annual)",
+      "category": "software_license",
+      "vendor": "GitHub",
+      "price": 231,
+      "stock_count": 999,
+      "min_grade": "IC2",
+      "description": "GitHub Enterprise seat. Requires manager approval and IT onboarding.",
+      "tags": ["developer-tools", "DevOps", "SaaS", "annual"]
+    },
+    {
+      "id": "SRV-001",
+      "name": "Dell PowerEdge R750 (2U Rack)",
+      "category": "server_hardware",
+      "vendor": "Dell",
+      "price": 8999,
+      "stock_count": 2,
+      "min_grade": "IC5",
+      "description": "2U rack server, dual Xeon Silver, 256GB RAM, 10TB SSD. Requires CTO approval and infra ticket.",
+      "tags": ["server", "rack", "infra", "high-value"]
+    },
+    {
+      "id": "ACC-001",
+      "name": "Anker 777 Thunderbolt Docking Station",
+      "category": "accessory",
+      "vendor": "Anker",
+      "price": 279,
+      "stock_count": 22,
+      "min_grade": "IC2",
+      "description": "13-in-1 Thunderbolt 4 dock, 100W laptop charging, dual 4K display, 2.5G Ethernet.",
+      "tags": ["dock", "Thunderbolt", "USB-C", "remote-work"]
+    }
+  ],
+  "grade_hierarchy": {
+    "IC1": 1,
+    "IC2": 2,
+    "IC3": 3,
+    "IC4": 4,
+    "IC5": 5,
+    "M3":  6,
+    "M4":  7,
+    "D5":  8
+  },
+  "role_to_grade": {
+    "Intern":                  "IC1",
+    "Junior Engineer":         "IC2",
+    "Software Engineer":       "IC3",
+    "Senior Engineer":         "IC4",
+    "Staff Engineer":          "IC5",
+    "Data Analyst":            "IC3",
+    "Senior Data Analyst":     "IC4",
+    "Product Manager":         "IC4",
+    "Senior Product Manager":  "IC5",
+    "Engineering Manager":     "M3",
+    "Senior Manager":          "M4",
+    "Director":                "D5"
+  }
 }

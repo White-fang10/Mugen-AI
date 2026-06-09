@@ -276,7 +276,7 @@ class SlotMachine:
         )
 
     async def _run_decision(self) -> str:
-        """Call the decision engine and return a formatted verdict."""
+        """Call the Stage 4 decision engine and return a formatted verdict."""
         try:
             from bot.db.repository import append_audit, create_request, update_request_decision
             from bot.validation.decision import evaluate_request
@@ -287,33 +287,26 @@ class SlotMachine:
                 slots=self.slots,
             )
 
-            verdict = await evaluate_request(self.slots)
+            # Stage 4: pass user_id so HRIS lookup is performed
+            verdict = await evaluate_request(self.slots, user_id=self.user_id)
+
             await update_request_decision(
                 request_id=req_id,
-                status=verdict.status,
+                status=verdict.db_status,          # uppercase for DB
                 reason=verdict.reason,
                 policy_refs=verdict.policy_refs,
             )
-            await append_audit(req_id, actor="MUGEN_AI", action=verdict.status, detail=verdict.reason)
+            await append_audit(
+                req_id,
+                actor="MUGEN_AI",
+                action=verdict.db_status,
+                detail=verdict.reason,
+            )
 
             self.state = ConversationState.DONE
 
-            icon = {"APPROVED": "✅", "NEEDS_REVIEW": "🔍", "REJECTED": "❌"}.get(verdict.status, "❓")
-            refs = (
-                "\n".join(f"  • _{r}_" for r in verdict.policy_refs)
-                if verdict.policy_refs
-                else "  _No specific clauses cited._"
-            )
-            conf_bar = "█" * int(verdict.confidence * 10) + "░" * (10 - int(verdict.confidence * 10))
-
-            return (
-                f"{icon} *Decision: {verdict.status}*\n\n"
-                f"*Request ID:* `{req_id}`\n"
-                f"*AI Confidence:* `{conf_bar}` {verdict.confidence:.0%}\n\n"
-                f"*Reasoning:*\n{verdict.reason}\n\n"
-                f"*Policy References:*\n{refs}\n\n"
-                f"_Track anytime with_ `/status {req_id}`"
-            )
+            # Use the Verdict's own Telegram formatter (Stage 4)
+            return verdict.format_telegram(req_id)
 
         except Exception as exc:
             log.error("decision_failed", error=str(exc), user_id=self.user_id)
