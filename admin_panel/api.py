@@ -29,6 +29,7 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import aiosqlite
 
 # ── Path resolution ──────────────────────────────────────────────────────────
 # admin_panel/api.py lives one level below the project root
@@ -133,11 +134,34 @@ async def upload_rulebook(file: UploadFile = File(...)):
 
 @app.get("/api/hris")
 async def get_hris():
-    """Return the full contents of hris.json."""
+    """Return the full contents of hris.json, normalising legacy field names.
+
+    Handles both old-format keys (id / budget) and canonical keys
+    (employee_id / budget_usd) so the dashboard renders correctly regardless
+    of which format the file was originally created with.
+    """
     if not HRIS_PATH.exists():
         return {"employees": []}
     async with aiofiles.open(HRIS_PATH, "r", encoding="utf-8") as f:
         data = json.loads(await f.read())
+
+    # Normalise field aliases so the dashboard always gets canonical names
+    _field_aliases: Dict[str, str] = {
+        "id":     "employee_id",
+        "emp_id": "employee_id",
+        "budget": "budget_usd",
+    }
+    normalised: List[Dict] = []
+    for emp in data.get("employees", []):
+        norm: Dict[str, Any] = {}
+        for k, v in emp.items():
+            canonical = _field_aliases.get(k, k)
+            # Keep the canonical key; do NOT overwrite if already present
+            if canonical not in norm:
+                norm[canonical] = v
+        normalised.append(norm)
+
+    data["employees"] = normalised
     return data
 
 
@@ -147,7 +171,12 @@ async def get_hris():
 
 @app.post("/api/hris/upload")
 async def upload_hris(file: UploadFile = File(...)):
-    """Replace hris.json with a new uploaded JSON file."""
+    """Replace hris.json with a new uploaded JSON file.
+    Normalises common alternate field names so uploads don't break the dashboard:
+      id        → employee_id
+      budget    → budget_usd
+      emp_id    → employee_id
+    """
     if not file.filename.lower().endswith(".json"):
         raise HTTPException(status_code=400, detail="Only JSON files are accepted.")
 
@@ -159,6 +188,32 @@ async def upload_hris(file: UploadFile = File(...)):
     except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=f"Invalid HRIS JSON: {exc}")
 
+    # ── Normalise field names ─────────────────────────────────────────────────
+    _field_aliases: Dict[str, str] = {
+        "id":       "employee_id",
+        "emp_id":   "employee_id",
+        "budget":   "budget_usd",
+    }
+    normalised: List[Dict] = []
+    for emp in data["employees"]:
+        norm: Dict[str, Any] = {}
+        for k, v in emp.items():
+            canonical = _field_aliases.get(k, k)   # rename if alias, else keep
+            norm[canonical] = v
+        # Ensure required numeric fields are int, not None / string
+        for num_field in ("budget_usd", "tenure_years"):
+            raw = norm.get(num_field)
+            if raw is None or raw == "":
+                norm[num_field] = 0
+            else:
+                try:
+                    norm[num_field] = int(float(str(raw)))
+                except (ValueError, TypeError):
+                    norm[num_field] = 0
+        normalised.append(norm)
+
+    data["employees"] = normalised
+
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     # Backup existing
     if HRIS_PATH.exists():
@@ -167,8 +222,8 @@ async def upload_hris(file: UploadFile = File(...)):
     async with aiofiles.open(HRIS_PATH, "w", encoding="utf-8") as f:
         await f.write(json.dumps(data, indent=2))
 
-    log.info("hris_replaced_via_panel", employees=len(data["employees"]))
-    return {"success": True, "employees_count": len(data["employees"])}
+    log.info("hris_replaced_via_panel", employees=len(normalised))
+    return {"success": True, "employees_count": len(normalised)}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -240,6 +295,79 @@ async def delete_employee(employee_id: str):
 
     log.info("employee_deleted_via_panel", employee_id=employee_id)
     return {"success": True, "deleted_employee_id": employee_id}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GET /api/requests  — fetch all asset requests from SQLite
+# ─────────────────────────────────────────────────────────────────────────────
+
+@app.get("/api/requests")
+async def get_all_requests(
+    status: Optional[str] = None,
+    limit: int = 100,
+):
+    """
+    Return asset requests from the SQLite DB.
+    Optional ?status=APPROVED|REJECTED|FLAGGED|PENDING filter.
+    """
+    from bot.config import get_settings
+    settings = get_settings()
+    db_path  = str(settings.db_path)
+
+    try:
+        async with aiosqlite.connect(db_path) as db:
+            db.row_factory = aiosqlite.Row
+            # Try to include user_identity; fall back gracefully if column absent
+            _cols = """id, user_id, asset_name, asset_category,
+                       justification, urgency, cost_estimate,
+                       status, decision_reason, suggested_alternative,
+                       employee_grade, rag_signal, policy_refs,
+                       created_at, updated_at"""
+            _cols_with_identity = _cols + ", user_identity"
+
+            # Detect whether user_identity column exists
+            try:
+                await db.execute("SELECT user_identity FROM asset_requests LIMIT 1")
+                select_cols = _cols_with_identity
+            except Exception:
+                select_cols = _cols
+
+            if status:
+                cur = await db.execute(
+                    f"""SELECT {select_cols}
+                       FROM asset_requests
+                       WHERE UPPER(status)=?
+                       ORDER BY created_at DESC LIMIT ?""",
+                    (status.upper(), limit),
+                )
+            else:
+                cur = await db.execute(
+                    f"""SELECT {select_cols}
+                       FROM asset_requests
+                       ORDER BY created_at DESC LIMIT ?""",
+                    (limit,),
+                )
+            rows = await cur.fetchall()
+            requests = []
+            for r in rows:
+                row = dict(r)
+                # Parse policy_refs JSON string → list
+                try:
+                    row["policy_refs"] = json.loads(row.get("policy_refs") or "[]")
+                except Exception:
+                    row["policy_refs"] = []
+                requests.append(row)
+
+        # Summary counts
+        counts: Dict[str, int] = {}
+        for r in requests:
+            s = r.get("status", "UNKNOWN")
+            counts[s] = counts.get(s, 0) + 1
+
+        return {"requests": requests, "counts": counts, "total": len(requests)}
+    except Exception as exc:
+        log.error("requests_fetch_error", error=str(exc))
+        raise HTTPException(status_code=500, detail=f"Could not read requests DB: {exc}")
 
 
 # ─────────────────────────────────────────────────────────────────────────────

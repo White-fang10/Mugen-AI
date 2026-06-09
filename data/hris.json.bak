@@ -1,0 +1,34 @@
+{
+  "employees": [
+    {
+      "employee_id": "EMP001",
+      "name": "Alice Johnson",
+      "role": "Software Engineer",
+      "department": "Engineering",
+      "tenure_years": 3,
+      "budget_usd": 3000,
+      "manager_id": "EMP010",
+      "location": "Remote"
+    },
+    {
+      "employee_id": "EMP002",
+      "name": "Bob Smith",
+      "role": "Product Manager",
+      "department": "Product",
+      "tenure_years": 6,
+      "budget_usd": 5000,
+      "manager_id": "EMP011",
+      "location": "HQ"
+    },
+    {
+      "employee_id": "EMP003",
+      "name": "Carol Davis",
+      "role": "Data Analyst",
+      "department": "Analytics",
+      "tenure_years": 1,
+      "budget_usd": 2000,
+      "manager_id": "EMP010",
+      "location": "Remote"
+    }
+  ]
+}

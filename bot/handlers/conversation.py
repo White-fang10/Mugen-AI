@@ -49,8 +49,9 @@ log = structlog.get_logger(__name__)
 # PTB conversation state keys
 # ─────────────────────────────────────────────────────────────────────────────
 
-SLOT_COLLECT = 0
-CONFIRMING   = 1
+GREETING     = 0
+SLOT_COLLECT = 1
+CONFIRMING   = 2
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Helpers
@@ -98,12 +99,9 @@ async def conv_start_request(
 ) -> int:
     """
     /request entry point.
-    Creates a fresh SlotMachine and sends the first slot prompt.
-    If allow_reentry=True fires while a session is already open, it
-    cleanly cancels the old session first.
+    First asks for the user's name and employee ID (GREETING state).
+    Then creates the SlotMachine and collects asset slots.
     """
-    from bot.db.repository import upsert_session
-
     user    = update.effective_user
     user_id = user.id
 
@@ -112,6 +110,48 @@ async def conv_start_request(
     if old_session:
         await _do_cancel(context, user_id)
 
+    # Clear any previous identity stored
+    if context.user_data is not None:
+        context.user_data.pop("user_identity", None)
+
+    tg_name = user.full_name or user.username or "there"
+    await _safe_reply(
+        update,
+        f"👋 *Hello, {tg_name}\\!*\n\n"
+        "Before we begin your asset request, I need to verify your identity\.\.\n\n"
+        "📛 *Please tell me your name and Employee ID*\n"
+        "_e\.g\. \"Alice Johnson, EMP001\"_",
+    )
+    log.info("conv_greeting_started", user_id=user_id)
+    return GREETING
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# GREETING state handler
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def conv_collect_identity(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """
+    Receives the user's name + employee ID in GREETING state.
+    Stores it in user_data, then creates the SlotMachine and moves
+    to SLOT_COLLECT.
+    """
+    from bot.db.repository import upsert_session
+
+    text    = (update.message.text or "").strip()
+    user_id = update.effective_user.id
+
+    if not text:
+        await _safe_reply(update, "💬 Please type your name and Employee ID to continue\.")
+        return GREETING
+
+    # Store whatever the user typed as their self-reported identity
+    if context.user_data is not None:
+        context.user_data["user_identity"] = text
+
+    # Now start the real session
     session_id = await upsert_session(user_id=user_id, state=ConversationState.COLLECTING)
     machine    = SlotMachine(user_id=user_id, session_id=session_id)
     _set_machine(context, machine)
@@ -122,9 +162,11 @@ async def conv_start_request(
     opening = machine.get_opening_prompt()
     await _safe_reply(
         update,
-        f"📋 *New Asset Request* — Let's get started\\!\n\n{opening}",
+        f"✅ *Identity recorded*: `{text}`\n\n"
+        f"📋 *New Asset Request* — Let's collect the details\.\.\n\n"
+        f"{opening}",
     )
-    log.info("conv_request_started", user_id=user_id, session_id=session_id)
+    log.info("conv_identity_collected", user_id=user_id, identity=text, session_id=session_id)
     return SLOT_COLLECT
 
 
@@ -337,6 +379,14 @@ def build_request_conversation() -> ConversationHandler:
             CommandHandler("request", conv_start_request),
         ],
         states={
+            GREETING: [
+                # Any text in greeting state → identity collection
+                MessageHandler(
+                    filters.TEXT & ~filters.COMMAND,
+                    conv_collect_identity,
+                ),
+                MessageHandler(_media_filter, conv_media_interrupt),
+            ],
             SLOT_COLLECT: [
                 # Text input → slot collection
                 MessageHandler(

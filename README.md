@@ -32,13 +32,13 @@
 
 <div align="center">
 
-![MUGEN AI Enhanced Architecture](../enhanced_asset_bot_architecture.svg)
+![MUGEN AI Enhanced Architecture](./Architecture.png)
 
 </div>
 
 ---
 
-## 🆚 Why MUGEN AI?
+## Why MUGEN AI?
 
 | | Typical Asset Bot | **MUGEN AI** |
 |:---|:---:|:---:|
@@ -122,13 +122,31 @@
 | `< 0.40` | ❓ Re-ask with original prompt (max 3 retries) |
 | `injection_risk: high` | 🔒 Session permanently frozen |
 
-<<<<<<< HEAD
-</div>
-
----     
-=======
 ---
->>>>>>> 1eb81a2 (Update: sync local changes)
+
+## 💬 User Identity Flow
+
+Before processing any asset request, MUGEN AI verifies the user's identity:
+
+```
+User  →  /request
+ Bot  →  👋 Hello, John!
+
+         Before we begin your asset request, I need to verify your identity.
+
+         📛 Please tell me your name and Employee ID
+         e.g. "Alice Johnson, EMP001"
+
+User  →  "Pranesh, EMP004"
+ Bot  →  ✅ Identity recorded: Pranesh, EMP004
+
+         📋 New Asset Request — Let's collect the details...
+         🖥️ What asset do you need?
+```
+
+The identity is stored with each request and visible to admins in the dashboard.
+
+---
 
 ## 🗂️ RAG Ingestion Pipeline
 
@@ -218,11 +236,22 @@
 
 ---
 
-## 💬 Request Walkthrough
+## 💬 Full Request Walkthrough
 
 ```
 User  →  /request
- Bot  →  🖥️ What asset do you need?
+ Bot  →  👋 Hello, Alice!
+
+         Before we begin your asset request, I need to verify your identity.
+
+         📛 Please tell me your name and Employee ID
+         e.g. "Alice Johnson, EMP001"
+
+User  →  "Alice Johnson, EMP001"
+ Bot  →  ✅ Identity recorded: Alice Johnson, EMP001
+
+         📋 New Asset Request — Let's collect the details...
+         🖥️ What asset do you need?
 
 User  →  "macbok pro 14 for video editing, its urgent"
  Bot  →  ✏️ Interpreted as: MacBook Pro 14
@@ -277,6 +306,9 @@ sd05-asset-request-bot/
 │   ├── handlers/
 │   │   ├── commands.py            /start  /status  /upload_rulebook
 │   │   ├── conversation.py        PTB ConversationHandler  (/request flow)
+│   │   │                          ↳ GREETING → identity verification (name + EMP ID)
+│   │   │                          ↳ SLOT_COLLECT → asset details
+│   │   │                          ↳ CONFIRMING → yes / no submission
 │   │   └── messages.py            Orphan message fallback
 │   │
 │   ├── slots/
@@ -300,11 +332,15 @@ sd05-asset-request-bot/
 │
 ├── admin_panel/
 │   ├── api.py                     FastAPI admin REST endpoints
+│   │                              ↳ GET  /api/hris           — normalised field names
+│   │                              ↳ GET  /api/requests       — includes user_identity
 │   └── static/
 │       └── index.html             Admin dashboard UI
+│                                  ↳ Shows Approved / Rejected counts on load
+│                                  ↳ Employee identity shown in Requests tab
 │
 ├── data/
-│   ├── hris.json                  Mock employee roster (role · budget · tenure)
+│   ├── hris.json                  Employee roster (id / budget fields auto-normalised)
 │   ├── asset_policy.json          Cost caps · category rules · prohibited items
 │   └── products.json              20-item catalogue with stock · price · min_grade
 │
@@ -404,6 +440,7 @@ Or use the **📚 Rulebook Manager** tab in the admin dashboard.
 | 3 | ✅ Done | PDF RAG pipeline · A–D grading · graded decision context |
 | 4 | ✅ Done | HRIS integration · product catalogue · suggested alternatives |
 | 5 | ✅ Done | Admin dashboard · Rulebook manager · HRIS manager · API key management |
+| 5b | ✅ Done | User identity verification (name + EMP ID) before each request |
 | 6 | 🔲 Planned | Webhook mode · Redis rate limiter · Prometheus metrics |
 
 ---

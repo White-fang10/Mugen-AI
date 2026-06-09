@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>MUGEN AI — Admin Panel</title>
-  <meta name="description" content="MUGEN AI Company Admin Panel — Manage rulebooks, employee HRIS data, and API configuration." />
+  <meta name="description" content="MUGEN AI Company Admin Panel — Manage rulebooks, employee HRIS data, asset requests and API configuration." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
@@ -57,7 +57,7 @@
     }
 
     /* ── Layout ───────────────────────────────────────────────────────────── */
-    .layout { position: relative; z-index: 1; max-width: 1100px; margin: 0 auto; padding: 0 24px 60px; }
+    .layout { position: relative; z-index: 1; max-width: 1200px; margin: 0 auto; padding: 0 24px 60px; }
 
     /* ── Header ───────────────────────────────────────────────────────────── */
     header {
@@ -102,6 +102,29 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50%       { opacity: 0.5; transform: scale(0.8); }
     }
+
+    /* ── Stats row ────────────────────────────────────────────────────────── */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px; margin-bottom: 28px;
+    }
+    @media (max-width: 900px) { .stats-row { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 600px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 20px; text-align: center;
+      transition: var(--transition);
+      cursor: default;
+    }
+    .stat-card:hover { border-color: var(--border-active); transform: translateY(-2px); }
+    .stat-card.clickable { cursor: pointer; }
+    .stat-value {
+      font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
 
     /* ── Tabs ─────────────────────────────────────────────────────────────── */
     .tabs {
@@ -261,9 +284,7 @@
 
     /* ── Input wrapper with eye toggle ───────────────────────────────────── */
     .input-with-toggle { position: relative; }
-    .input-with-toggle input {
-      width: 100%; padding-right: 44px;
-    }
+    .input-with-toggle input { width: 100%; padding-right: 44px; }
     .eye-btn {
       position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
       background: none; border: none; cursor: pointer;
@@ -283,7 +304,7 @@
     }
     tbody tr { border-top: 1px solid var(--border); transition: var(--transition); }
     tbody tr:hover { background: var(--bg-card-hover); }
-    tbody td { padding: 13px 16px; color: var(--text-primary); vertical-align: middle; }
+    tbody td { padding: 12px 16px; color: var(--text-primary); vertical-align: middle; }
     .emp-id { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--accent); }
     .dept-badge {
       font-size: 11px; padding: 3px 10px; border-radius: 999px;
@@ -328,20 +349,6 @@
     .empty-icon { font-size: 36px; margin-bottom: 10px; }
     .empty-text { font-size: 14px; }
 
-    /* ── Stats row ────────────────────────────────────────────────────────── */
-    .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
-    @media (max-width: 600px) { .stats-row { grid-template-columns: 1fr; } }
-    .stat-card {
-      background: var(--bg-card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 20px; text-align: center;
-    }
-    .stat-value {
-      font-size: 28px; font-weight: 700; font-family: 'JetBrains Mono', monospace;
-      background: linear-gradient(90deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-    }
-    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.05em; }
-
     /* ── Spinner ──────────────────────────────────────────────────────────── */
     .spinner {
       width: 16px; height: 16px;
@@ -371,6 +378,68 @@
       margin-bottom: 20px;
     }
     .warn-box-text { font-size: 13px; color: #b8900a; line-height: 1.6; }
+
+    /* ── Requests specific ────────────────────────────────────────────────── */
+    .req-filter.active {
+      background: rgba(99,140,255,0.15);
+      color: var(--accent);
+      border-color: var(--border-active);
+    }
+    .req-filter[data-status="APPROVED"].active { background: rgba(52,211,153,0.12); color: var(--success); border-color: rgba(52,211,153,0.4); }
+    .req-filter[data-status="REJECTED"].active { background: rgba(248,113,113,0.12); color: var(--danger); border-color: rgba(248,113,113,0.4); }
+    .req-filter[data-status="FLAGGED"].active  { background: rgba(251,191,36,0.12);  color: var(--warning); border-color: rgba(251,191,36,0.4); }
+    .req-filter[data-status="PENDING"].active  { background: rgba(99,140,255,0.12);  color: var(--accent); border-color: rgba(99,140,255,0.4); }
+
+    /* Identity pill shown in requests table */
+    .identity-pill {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11px; padding: 2px 8px; border-radius: 999px;
+      background: rgba(167,139,250,0.1);
+      color: var(--accent2);
+      border: 1px solid rgba(167,139,250,0.2);
+      white-space: nowrap; max-width: 140px;
+      overflow: hidden; text-overflow: ellipsis;
+    }
+
+    /* expandable reason cell */
+    .reason-cell {
+      font-size: 12px; color: var(--text-secondary);
+      cursor: pointer; max-width: 200px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .reason-cell:hover { color: var(--text-primary); }
+    .reason-cell.expanded { white-space: normal; overflow: visible; text-overflow: unset; }
+
+    /* ── Requests summary panels ──────────────────────────────────────────── */
+    .req-summary-row {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;
+    }
+    @media (max-width: 640px) { .req-summary-row { grid-template-columns: 1fr; } }
+    .req-summary-card {
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      display: flex; align-items: center; gap: 16px;
+    }
+    .req-summary-card.approved {
+      background: rgba(52,211,153,0.06);
+      border: 1px solid rgba(52,211,153,0.2);
+    }
+    .req-summary-card.rejected {
+      background: rgba(248,113,113,0.06);
+      border: 1px solid rgba(248,113,113,0.2);
+    }
+    .req-summary-icon { font-size: 28px; }
+    .req-summary-count {
+      font-size: 32px; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .req-summary-card.approved .req-summary-count { color: var(--success); }
+    .req-summary-card.rejected .req-summary-count { color: var(--danger); }
+    .req-summary-label { font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+    .req-summary-btn {
+      margin-left: auto;
+      font-size: 12px; padding: 5px 12px;
+    }
   </style>
 </head>
 <body>
@@ -405,6 +474,14 @@
       <div class="stat-value" id="stat-pdfs">—</div>
       <div class="stat-label">PDF Files on Disk</div>
     </div>
+    <div class="stat-card clickable" id="stat-approved-card" onclick="switchTab('requests'); setReqFilter(document.querySelector('.req-filter[data-status=APPROVED]'), 'APPROVED')">
+      <div class="stat-value" id="stat-approved" style="background:linear-gradient(90deg,var(--success),#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">—</div>
+      <div class="stat-label">✅ Approved</div>
+    </div>
+    <div class="stat-card clickable" id="stat-rejected-card" onclick="switchTab('requests'); setReqFilter(document.querySelector('.req-filter[data-status=REJECTED]'), 'REJECTED')">
+      <div class="stat-value" id="stat-rejected" style="background:linear-gradient(90deg,var(--danger),#dc2626);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">—</div>
+      <div class="stat-label">❌ Rejected</div>
+    </div>
   </div>
 
   <!-- Tabs -->
@@ -413,7 +490,10 @@
       📚 Rulebook Manager
     </button>
     <button class="tab-btn" id="tab-hris-btn" onclick="switchTab('hris')" role="tab" aria-selected="false">
-      👥 Employee (HRIS) Manager
+      👥 Employee (HRIS)
+    </button>
+    <button class="tab-btn" id="tab-requests-btn" onclick="switchTab('requests')" role="tab" aria-selected="false">
+      📊 Asset Requests
     </button>
     <button class="tab-btn" id="tab-keys-btn" onclick="switchTab('keys')" role="tab" aria-selected="false">
       🔑 API Keys
@@ -474,6 +554,18 @@
     <div class="card">
       <div class="card-title">📂 Bulk Upload HRIS File</div>
       <div class="card-desc">Upload a <code style="font-family:'JetBrains Mono'; font-size:12px; color:var(--accent);">hris.json</code> file to replace the entire employee database. A backup is created automatically.</div>
+
+      <div class="info-box">
+        <span class="info-box-icon">ℹ️</span>
+        <div class="info-box-text">
+          The JSON must have an <code style="color:var(--accent);font-family:'JetBrains Mono';">"employees"</code> array. Each employee should have:
+          <code style="color:var(--accent2);font-family:'JetBrains Mono';">id</code> (or <code style="color:var(--accent2);font-family:'JetBrains Mono';">employee_id</code>),
+          <code style="color:var(--accent2);font-family:'JetBrains Mono';">name</code>, <code style="color:var(--accent2);font-family:'JetBrains Mono';">role</code>,
+          <code style="color:var(--accent2);font-family:'JetBrains Mono';">department</code>,
+          <code style="color:var(--accent2);font-family:'JetBrains Mono';">budget</code> (or <code style="color:var(--accent2);font-family:'JetBrains Mono';">budget_usd</code>),
+          and <code style="color:var(--accent2);font-family:'JetBrains Mono';">tenure_years</code>.
+        </div>
+      </div>
 
       <div class="drop-zone" id="hris-drop-zone">
         <input type="file" id="hris-file-input" accept=".json" />
@@ -553,7 +645,49 @@
 
   </div>
 
-  <!-- ══════════════ TAB 3: API KEYS ══════════════ -->
+  <!-- ══════════════ TAB 3: ASSET REQUESTS ══════════════ -->
+  <div class="tab-pane" id="tab-requests">
+
+    <!-- Approved / Rejected summary panels -->
+    <div class="req-summary-row">
+      <div class="req-summary-card approved">
+        <div class="req-summary-icon">✅</div>
+        <div>
+          <div class="req-summary-count" id="req-approved-count">—</div>
+          <div class="req-summary-label">Approved Requests</div>
+        </div>
+        <button class="btn btn-ghost btn-sm req-summary-btn" onclick="setReqFilter(document.querySelector('.req-filter[data-status=APPROVED]'), 'APPROVED')">View All →</button>
+      </div>
+      <div class="req-summary-card rejected">
+        <div class="req-summary-icon">❌</div>
+        <div>
+          <div class="req-summary-count" id="req-rejected-count">—</div>
+          <div class="req-summary-label">Rejected Requests</div>
+        </div>
+        <button class="btn btn-ghost btn-sm req-summary-btn" onclick="setReqFilter(document.querySelector('.req-filter[data-status=REJECTED]'), 'REJECTED')">View All →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-header">
+        <div class="section-title">📊 Asset Requests Log</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <button class="btn btn-ghost btn-sm req-filter active" data-status="" onclick="setReqFilter(this,'')">All</button>
+          <button class="btn btn-ghost btn-sm req-filter" data-status="APPROVED" onclick="setReqFilter(this,'APPROVED')" style="color:var(--success);">✅ Approved</button>
+          <button class="btn btn-ghost btn-sm req-filter" data-status="REJECTED" onclick="setReqFilter(this,'REJECTED')" style="color:var(--danger);">❌ Rejected</button>
+          <button class="btn btn-ghost btn-sm req-filter" data-status="FLAGGED"  onclick="setReqFilter(this,'FLAGGED')"  style="color:var(--warning);">⚠️ Flagged</button>
+          <button class="btn btn-ghost btn-sm req-filter" data-status="PENDING"  onclick="setReqFilter(this,'PENDING')"  style="color:var(--accent);">⏳ Pending</button>
+          <button class="btn btn-ghost btn-sm" onclick="loadRequests(currentReqFilter)">↻ Refresh</button>
+        </div>
+      </div>
+      <div id="requests-table-container">
+        <div class="empty"><div class="empty-icon">📋</div><div class="empty-text">Loading requests…</div></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════════ TAB 4: API KEYS ══════════════ -->
   <div class="tab-pane" id="tab-keys">
 
     <div class="info-box">
@@ -645,18 +779,32 @@
   // ── State ────────────────────────────────────────────────────────────────
   let selectedPdf  = null;
   let selectedHris = null;
+  let currentReqFilter = '';
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  function escHtml(str) {
+    return String(str ?? '').replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]
+    );
+  }
 
   // ── Tabs ─────────────────────────────────────────────────────────────────
   function switchTab(tab) {
-    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-pane').forEach(p => {
+      p.classList.remove('active');
+      p.style.display = 'none';
+    });
     document.querySelectorAll('.tab-btn').forEach(b => {
       b.classList.remove('active');
       b.setAttribute('aria-selected', 'false');
     });
-    document.getElementById('tab-' + tab).classList.add('active');
-    document.getElementById('tab-' + tab + '-btn').classList.add('active');
-    document.getElementById('tab-' + tab + '-btn').setAttribute('aria-selected', 'true');
-    if (tab === 'keys') loadKeys();
+    const pane = document.getElementById('tab-' + tab);
+    if (pane) { pane.classList.add('active'); pane.style.display = 'block'; }
+    const btn = document.getElementById('tab-' + tab + '-btn');
+    if (btn) { btn.classList.add('active'); btn.setAttribute('aria-selected', 'true'); }
+    if (tab === 'keys')     loadKeys();
+    if (tab === 'requests') loadRequests(currentReqFilter);
+    if (tab === 'hris')     loadHris();
   }
 
   // ── Toast ─────────────────────────────────────────────────────────────────
@@ -764,7 +912,6 @@
     progWrap.classList.add('show');
     label.textContent = 'Uploading & building vectors…';
 
-    // Smooth fake progress during ingest
     let progress = 0;
     const interval = setInterval(() => {
       progress = Math.min(progress + Math.random() * 8, 88);
@@ -807,12 +954,29 @@
   }
 
   // ── Load HRIS ─────────────────────────────────────────────────────────────
+  // Normalise field names so both old (id/budget) and new (employee_id/budget_usd)
+  // formats from hris.json are displayed correctly.
+  function normaliseEmployee(e) {
+    return {
+      employee_id:  e.employee_id  ?? e.id      ?? '—',
+      name:         e.name         ?? '—',
+      role:         e.role         ?? '—',
+      department:   e.department   ?? '—',
+      tenure_years: e.tenure_years ?? 0,
+      budget_usd:   e.budget_usd   ?? e.budget  ?? 0,
+      location:     e.location     ?? '—',
+      grade:        e.grade        ?? '—',
+      status:       e.status       ?? '—',
+    };
+  }
+
   async function loadHris() {
     const container = document.getElementById('emp-table-container');
     try {
-      const res       = await fetch('/api/hris');
-      const data      = await res.json();
-      const employees = data.employees || [];
+      const res  = await fetch('/api/hris');
+      const data = await res.json();
+      const raw  = data.employees || [];
+      const employees = raw.map(normaliseEmployee);
 
       document.getElementById('stat-employees').textContent = employees.length;
 
@@ -827,19 +991,26 @@
             <thead>
               <tr>
                 <th>ID</th><th>Name</th><th>Role</th><th>Department</th>
-                <th>Tenure</th><th>Budget</th><th>Location</th><th></th>
+                <th>Grade</th><th>Tenure</th><th>Budget</th><th>Location</th><th>Status</th><th></th>
               </tr>
             </thead>
             <tbody>
               ${employees.map(e => `
                 <tr id="row-${escHtml(e.employee_id)}">
                   <td><span class="emp-id">${escHtml(e.employee_id)}</span></td>
-                  <td>${escHtml(e.name)}</td>
-                  <td>${escHtml(e.role)}</td>
+                  <td style="font-weight:500;">${escHtml(e.name)}</td>
+                  <td style="font-size:13px;color:var(--text-secondary);">${escHtml(e.role)}</td>
                   <td><span class="dept-badge">${escHtml(e.department)}</span></td>
-                  <td>${e.tenure_years} yr${e.tenure_years !== 1 ? 's' : ''}</td>
+                  <td><span style="font-size:12px;color:var(--accent2);font-weight:600;">${escHtml(e.grade)}</span></td>
+                  <td style="font-size:13px;">${e.tenure_years} yr${e.tenure_years !== 1 ? 's' : ''}</td>
                   <td><span class="budget">$${Number(e.budget_usd).toLocaleString()}</span></td>
-                  <td>${escHtml(e.location || '—')}</td>
+                  <td style="font-size:13px;">${escHtml(e.location)}</td>
+                  <td>
+                    ${e.status === 'Active'
+                      ? '<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(52,211,153,0.1);color:var(--success);border:1px solid rgba(52,211,153,0.25);">Active</span>'
+                      : `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(248,113,113,0.1);color:var(--danger);border:1px solid rgba(248,113,113,0.25);">${escHtml(e.status)}</span>`
+                    }
+                  </td>
                   <td>
                     <button class="btn btn-danger btn-sm" onclick="deleteEmployee('${escHtml(e.employee_id)}')">🗑</button>
                   </td>
@@ -935,7 +1106,7 @@
       if (!res.ok) throw new Error(data.detail || 'Delete failed');
       toast(`Employee ${id} removed.`, 'success');
       const row = document.getElementById('row-' + id);
-      if (row) row.style.animation = 'fadeUp 0.2s ease reverse';
+      if (row) { row.style.opacity = '0'; row.style.transition = 'opacity 0.2s'; }
       setTimeout(loadHris, 250);
     } catch (err) {
       toast('Delete failed: ' + err.message, 'error');
@@ -974,9 +1145,9 @@
   // ── Save Key(s) ───────────────────────────────────────────────────────────
   async function saveKey(which) {
     const configs = {
-      bot:  { btnId: 'save-bot-token-btn', spinnerId: 'bot-token-spinner', textId: 'bot-token-btn-text',  inputId: 'new-bot-token',  field: 'bot_token',    label: 'Bot Token' },
-      groq: { btnId: 'save-groq-key-btn',  spinnerId: 'groq-key-spinner',  textId: 'groq-key-btn-text',   inputId: 'new-groq-key',   field: 'groq_api_key', label: 'Groq API Key' },
-      both: { btnId: 'save-all-keys-btn',  spinnerId: 'all-keys-spinner',  textId: 'all-keys-btn-text',   inputId: null,             field: null,           label: 'Keys' },
+      bot:  { btnId: 'save-bot-token-btn', spinnerId: 'bot-token-spinner', textId: 'bot-token-btn-text',  label: 'Bot Token' },
+      groq: { btnId: 'save-groq-key-btn',  spinnerId: 'groq-key-spinner',  textId: 'groq-key-btn-text',   label: 'Groq API Key' },
+      both: { btnId: 'save-all-keys-btn',  spinnerId: 'all-keys-spinner',  textId: 'all-keys-btn-text',   label: 'Keys' },
     };
     const cfg = configs[which];
 
@@ -1014,11 +1185,9 @@
 
       toast(`${cfg.label} saved to .env ✓ — restart the bot to apply.`, 'success');
 
-      // Clear inputs
       if (which === 'bot'  || which === 'both') document.getElementById('new-bot-token').value = '';
       if (which === 'groq' || which === 'both') document.getElementById('new-groq-key').value  = '';
 
-      // Reload status
       loadKeys();
     } catch (err) {
       toast('Save failed: ' + err.message, 'error');
@@ -1042,16 +1211,166 @@
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-  function escHtml(str) {
-    return String(str ?? '').replace(/[&<>"']/g, c =>
-      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]
-    );
+  // ── Requests ──────────────────────────────────────────────────────────────
+  function setReqFilter(btn, status) {
+    document.querySelectorAll('.req-filter').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    currentReqFilter = status;
+    loadRequests(status);
+  }
+
+  function reqStatusBadge(status) {
+    const map = {
+      APPROVED: { bg: 'rgba(52,211,153,0.12)', color: 'var(--success)', border: 'rgba(52,211,153,0.3)', icon: '✅' },
+      REJECTED: { bg: 'rgba(248,113,113,0.12)', color: 'var(--danger)',  border: 'rgba(248,113,113,0.3)', icon: '❌' },
+      FLAGGED:  { bg: 'rgba(251,191,36,0.12)',  color: 'var(--warning)', border: 'rgba(251,191,36,0.3)',  icon: '⚠️' },
+      PENDING:  { bg: 'rgba(99,140,255,0.12)',  color: 'var(--accent)',  border: 'rgba(99,140,255,0.3)',  icon: '⏳' },
+    };
+    const s = (status || 'PENDING').toUpperCase();
+    const c = map[s] || map.PENDING;
+    return `<span style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:999px;background:${c.bg};color:${c.color};border:1px solid ${c.border};white-space:nowrap;">${c.icon} ${s}</span>`;
+  }
+
+  function ragBadge(signal) {
+    if (!signal) return '<span style="color:var(--text-muted);font-size:11px;">—</span>';
+    const map = { STRONG: '🟢', WEAK: '🟡', NONE: '🔴' };
+    return `<span style="font-size:11px;color:var(--text-secondary);">${map[signal] || '⚪'} ${signal}</span>`;
+  }
+
+  // Extract employee name from user_identity string (may be "Name, EMPID" or just ID)
+  function parseIdentity(raw) {
+    if (!raw) return null;
+    const str = String(raw).trim();
+    // Match "Name, EMPXXX" pattern
+    const m = str.match(/^(.+?),?\s*(EMP\d+|[A-Z0-9]{4,10})$/i);
+    if (m) return { name: m[1].trim(), empId: m[2].trim().toUpperCase() };
+    // Just an ID or just a name
+    if (/^EMP\d+$/i.test(str)) return { name: null, empId: str.toUpperCase() };
+    return { name: str, empId: null };
+  }
+
+  function identityPill(userId, userIdentity) {
+    const parsed = parseIdentity(userIdentity);
+    if (parsed) {
+      const label = parsed.name
+        ? `${parsed.name}${parsed.empId ? ' · ' + parsed.empId : ''}`
+        : parsed.empId || String(userId);
+      return `<span class="identity-pill" title="${escHtml(userIdentity || String(userId))}">👤 ${escHtml(label)}</span>`;
+    }
+    return `<span style="font-size:12px;color:var(--text-muted);">TG:${escHtml(String(userId))}</span>`;
+  }
+
+  async function loadRequests(status = '') {
+    const container = document.getElementById('requests-table-container');
+    if (!container) return;
+    container.innerHTML = `<div class="empty"><div class="empty-icon">⏳</div><div class="empty-text">Loading…</div></div>`;
+    try {
+      const url = status ? `/api/requests?status=${encodeURIComponent(status)}` : '/api/requests';
+      const res  = await fetch(url);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Failed to load');
+
+      const reqs   = data.requests || [];
+      const counts = data.counts   || {};
+
+      // Always fetch global counts (all statuses) for the stat cards
+      let allCounts = counts;
+      if (status) {
+        // We only got filtered counts — fetch all for global stats
+        try {
+          const allRes   = await fetch('/api/requests?limit=1');
+          const allData  = await allRes.json();
+          allCounts = allData.counts || {};
+        } catch (_) {}
+      }
+
+      // Update stat cards & summary panels
+      const approvedN = allCounts.APPROVED ?? 0;
+      const rejectedN = allCounts.REJECTED ?? 0;
+      document.getElementById('stat-approved').textContent       = approvedN;
+      document.getElementById('stat-rejected').textContent       = rejectedN;
+      document.getElementById('req-approved-count').textContent  = approvedN;
+      document.getElementById('req-rejected-count').textContent  = rejectedN;
+
+      if (reqs.length === 0) {
+        container.innerHTML = `<div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No ${status ? status.toLowerCase() : ''} requests found.</div></div>`;
+        return;
+      }
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Req ID</th>
+                <th>Employee</th>
+                <th>Asset</th>
+                <th>Urgency</th>
+                <th>Cost</th>
+                <th>Grade</th>
+                <th>RAG</th>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Reason / Decision</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${reqs.map(r => {
+                const cost      = r.cost_estimate != null ? `$${Number(r.cost_estimate).toLocaleString()}` : '—';
+                const rawDate   = r.created_at || '';
+                const date      = rawDate.includes('T') ? rawDate.split('T')[0] : (rawDate || '—');
+                const reason    = r.decision_reason || r.suggested_alternative || '—';
+                const shortR    = reason.length > 70 ? reason.slice(0, 70) + '…' : reason;
+                const rId       = 'rc-' + escHtml(r.id);
+                return `
+                  <tr>
+                    <td><span class="emp-id" style="font-size:11px;">${escHtml(String(r.id))}</span></td>
+                    <td style="min-width:130px;">${identityPill(r.user_id, r.user_identity)}</td>
+                    <td style="font-weight:500;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${escHtml(r.asset_name||'')}">
+                      ${escHtml(r.asset_name || '—')}
+                    </td>
+                    <td><span style="font-size:11px;font-weight:600;color:${r.urgency==='HIGH'?'var(--danger)':r.urgency==='LOW'?'var(--text-muted)':'var(--warning)'};">${escHtml(r.urgency||'—')}</span></td>
+                    <td><span class="budget">${cost}</span></td>
+                    <td><span style="font-size:12px;color:var(--accent2);font-weight:600;">${escHtml(r.employee_grade||'—')}</span></td>
+                    <td>${ragBadge(r.rag_signal)}</td>
+                    <td>${reqStatusBadge(r.status)}</td>
+                    <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">${escHtml(date)}</td>
+                    <td>
+                      <span id="${rId}" class="reason-cell" title="${escHtml(reason)}"
+                        onclick="const el=document.getElementById('${rId}');el.classList.toggle('expanded');el.textContent=el.classList.contains('expanded')?'${escHtml(reason)}':'${escHtml(shortR)}';"
+                      >${escHtml(shortR)}</span>
+                    </td>
+                  </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`;
+
+    } catch (err) {
+      container.innerHTML = `<div class="empty"><div class="empty-icon">⚠️</div><div class="empty-text">Failed to load requests: ${escHtml(err.message)}</div></div>`;
+    }
   }
 
   // ── Init ──────────────────────────────────────────────────────────────────
+  // Ensure all panes except the active one are hidden
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    if (!p.classList.contains('active')) p.style.display = 'none';
+  });
+
   loadStatus();
   loadHris();
+  // Pre-load requests counts for the stat cards on page load (limit=1 = fast)
+  (async () => {
+    try {
+      const res  = await fetch('/api/requests?limit=500');
+      const data = await res.json();
+      const counts = data.counts || {};
+      document.getElementById('stat-approved').textContent      = counts.APPROVED ?? 0;
+      document.getElementById('stat-rejected').textContent      = counts.REJECTED ?? 0;
+      document.getElementById('req-approved-count').textContent = counts.APPROVED ?? 0;
+      document.getElementById('req-rejected-count').textContent = counts.REJECTED ?? 0;
+    } catch (_) {}
+  })();
 </script>
 </body>
 </html>

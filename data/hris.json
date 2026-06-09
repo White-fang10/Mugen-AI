@@ -1,44 +1,114 @@
 {
   "employees": [
     {
-      "employee_id": "EMP001",
+      "id": "EMP001",
       "name": "Alice Johnson",
       "role": "Software Engineer",
       "department": "Engineering",
       "tenure_years": 3,
-      "budget_usd": 3000,
-      "manager_id": "EMP010",
-      "location": "Remote"
+      "budget": 3000,
+      "location": "Remote",
+      "grade": "L2",
+      "status": "Active"
     },
     {
-      "employee_id": "EMP002",
+      "id": "EMP002",
       "name": "Bob Smith",
       "role": "Product Manager",
       "department": "Product",
       "tenure_years": 6,
-      "budget_usd": 5000,
-      "manager_id": "EMP011",
-      "location": "HQ"
+      "budget": 5000,
+      "location": "HQ",
+      "grade": "L4",
+      "status": "Active"
     },
     {
-      "employee_id": "EMP003",
+      "id": "EMP003",
       "name": "Carol Davis",
       "role": "Data Analyst",
       "department": "Analytics",
       "tenure_years": 1,
-      "budget_usd": 2000,
-      "manager_id": "EMP010",
-      "location": "Remote"
+      "budget": 2000,
+      "location": "Remote",
+      "grade": "L1",
+      "status": "Active"
     },
     {
-      "employee_id": "EMP010",
+      "id": "EMP004",
+      "name": "Pranesh",
+      "role": "Software Engineer",
+      "department": "Engineering",
+      "tenure_years": 2,
+      "budget": 3500,
+      "location": "Remote",
+      "grade": "L2",
+      "status": "Active"
+    },
+    {
+      "id": "EMP005",
+      "name": "Sarah Wilson",
+      "role": "UI/UX Designer",
+      "department": "Design",
+      "tenure_years": 4,
+      "budget": 4000,
+      "location": "HQ",
+      "grade": "L3",
+      "status": "Active"
+    },
+    {
+      "id": "EMP006",
+      "name": "Michael Brown",
+      "role": "DevOps Engineer",
+      "department": "Engineering",
+      "tenure_years": 5,
+      "budget": 4500,
+      "location": "Remote",
+      "grade": "L3",
+      "status": "Active"
+    },
+    {
+      "id": "EMP007",
+      "name": "Emily Taylor",
+      "role": "HR Manager",
+      "department": "Human Resources",
+      "tenure_years": 7,
+      "budget": 6000,
+      "location": "HQ",
+      "grade": "L4",
+      "status": "Active"
+    },
+    {
+      "id": "EMP008",
+      "name": "James Anderson",
+      "role": "Cybersecurity Specialist",
+      "department": "Security",
+      "tenure_years": 3,
+      "budget": 5500,
+      "location": "HQ",
+      "grade": "L3",
+      "status": "Active"
+    },
+    {
+      "id": "EMP009",
+      "name": "Sophia Martinez",
+      "role": "Business Analyst",
+      "department": "Analytics",
+      "tenure_years": 2,
+      "budget": 3000,
+      "location": "Remote",
+      "grade": "L2",
+      "status": "Active"
+    },
+    {
+      "id": "EMP010",
       "name": "David Chen",
       "role": "Engineering Manager",
       "department": "Engineering",
       "tenure_years": 8,
-      "budget_usd": 8000,
-      "manager_id": "EMP020",
-      "location": "HQ"
+      "budget": 8000,
+      "location": "HQ",
+      "grade": "L5",
+      "status": "Active"
     }
   ]
 }
