@@ -1,0 +1,25 @@
+# ─── Core Runtime ────────────────────────────────────────────────────────────
+python-telegram-bot==20.7
+aiosqlite==0.20.0
+pydantic==2.7.1
+pydantic-settings==2.3.0
+python-dotenv==1.0.1
+
+# ─── LLM / NLP ───────────────────────────────────────────────────────────────
+groq==0.9.0
+langchain==0.2.6
+langchain-core==0.2.10
+langchain-groq==0.1.6
+langchain-community==0.2.6
+langchain-text-splitters==0.2.2
+
+# ─── RAG Stack ────────────────────────────────────────────────────────────────
+PyMuPDF==1.24.5
+sentence-transformers==3.0.1
+chromadb==0.5.3
+
+# ─── Utilities ────────────────────────────────────────────────────────────────
+httpx==0.27.0
+tenacity==8.3.0
+structlog==24.2.0
+ujson==5.10.0

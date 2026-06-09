@@ -1,0 +1,17 @@
+{
+  "products": [
+    {"name": "MacBook Pro 14 M3 Pro", "category": "laptop",         "msrp": 1999, "vendor": "Apple"},
+    {"name": "MacBook Pro 16 M3 Max", "category": "laptop",         "msrp": 3499, "vendor": "Apple"},
+    {"name": "MacBook Air 15 M3",     "category": "laptop",         "msrp": 1299, "vendor": "Apple"},
+    {"name": "Dell Latitude 5540",    "category": "laptop",         "msrp": 1149, "vendor": "Dell"},
+    {"name": "ThinkPad X1 Carbon",    "category": "laptop",         "msrp": 1549, "vendor": "Lenovo"},
+    {"name": "Dell UltraSharp 27\"",  "category": "monitor",        "msrp": 699,  "vendor": "Dell"},
+    {"name": "LG 27UK850-W 4K",       "category": "monitor",        "msrp": 549,  "vendor": "LG"},
+    {"name": "Logitech MX Keys",      "category": "keyboard_mouse", "msrp": 99,   "vendor": "Logitech"},
+    {"name": "Logitech MX Master 3",  "category": "keyboard_mouse", "msrp": 99,   "vendor": "Logitech"},
+    {"name": "Sony WH-1000XM5",       "category": "headset",        "msrp": 349,  "vendor": "Sony"},
+    {"name": "Bose QuietComfort 45",  "category": "headset",        "msrp": 279,  "vendor": "Bose"},
+    {"name": "iPhone 15 Pro",         "category": "mobile_phone",   "msrp": 999,  "vendor": "Apple"},
+    {"name": "Samsung Galaxy S24",    "category": "mobile_phone",   "msrp": 899,  "vendor": "Samsung"}
+  ]
+}

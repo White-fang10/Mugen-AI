@@ -1,0 +1,51 @@
+{
+  "version": "2024-Q4",
+  "global_rules": {
+    "auto_approve_limit_usd": 500,
+    "needs_review_limit_usd": 2000,
+    "hard_reject_limit_usd": 10000,
+    "require_justification_above_usd": 200,
+    "require_manager_approval_above_usd": 2000
+  },
+  "category_rules": {
+    "laptop": {
+      "max_usd": 3500,
+      "replacement_cycle_years": 3,
+      "eligible_roles": ["all"],
+      "notes": "Employees with tenure < 6 months require manager sign-off"
+    },
+    "monitor": {
+      "max_usd": 800,
+      "eligible_roles": ["all"]
+    },
+    "keyboard_mouse": {
+      "max_usd": 300,
+      "eligible_roles": ["all"]
+    },
+    "headset": {
+      "max_usd": 400,
+      "eligible_roles": ["all"]
+    },
+    "mobile_phone": {
+      "max_usd": 1200,
+      "eligible_roles": ["Manager", "Director", "VP", "C-Suite"],
+      "notes": "Only approved for client-facing roles at manager level and above"
+    },
+    "server_hardware": {
+      "max_usd": 15000,
+      "eligible_roles": ["Infrastructure Engineer", "DevOps Engineer"],
+      "notes": "Requires CTO approval. Raise a separate procurement ticket."
+    },
+    "software_license": {
+      "max_usd": 2000,
+      "eligible_roles": ["all"],
+      "notes": "SaaS tools must be reviewed by IT Security before purchase"
+    }
+  },
+  "prohibited_items": [
+    "personal gaming peripherals",
+    "non-work-related electronics",
+    "cryptocurrency hardware",
+    "personal NAS drives"
+  ]
+}
