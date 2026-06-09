@@ -295,6 +295,9 @@ class SlotMachine:
                 status=verdict.db_status,          # uppercase for DB
                 reason=verdict.reason,
                 policy_refs=verdict.policy_refs,
+                suggested_alternative=verdict.suggested_alternative,
+                employee_grade=verdict.employee_grade,
+                rag_signal=verdict.rag_signal,
             )
             await append_audit(
                 req_id,

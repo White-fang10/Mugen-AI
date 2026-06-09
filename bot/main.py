@@ -39,7 +39,7 @@ from bot.handlers.commands import (
     handle_cancel,
 )
 from bot.handlers.conversation import build_request_conversation
-from bot.security.scorer import SuspicionResult, score_message
+from bot.security.scorer import SuspicionResult, SuspicionScorer, score_message
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging bootstrap
@@ -91,12 +91,14 @@ async def security_middleware(
     Global pre-handler security gate.
 
     Extracts text from any update type that carries a user message,
-    runs it through the suspicion scorer, and:
+    runs it through the stateful suspicion scorer, and:
 
       • Stores the SuspicionResult on context.user_data so downstream
         handlers can inspect it.
-      • If is_suspicious → sends a quarantine reply and raises
-        ApplicationHandlerStop to abort the handler chain.
+      • If action is BLOCK → sends a quarantine reply, cancels any active
+        request session in the DB/state, and aborts the handler chain.
+      • If action is FLAG → alerts the admin via Telegram DM but lets
+        the user continue.
 
     Admin commands (/upload_rulebook) are not exempt — admins can still
     be compromised accounts.
@@ -125,14 +127,35 @@ async def security_middleware(
 
     user_id = user.id
 
+    # Resolve stateful SuspicionScorer
+    scorer = None
+    if context.user_data is not None:
+        scorer = context.user_data.get("suspicion_scorer")
+        if not scorer:
+            scorer = SuspicionScorer(user_id=user_id)
+            context.user_data["suspicion_scorer"] = scorer
+
+    # Determine if this starts a new request to track velocity
+    is_new_request = False
+    if update.message and update.message.text == "/request":
+        is_new_request = True
+
     # Score it
-    result: SuspicionResult = await score_message(user_id=user_id, text=text)
+    if scorer:
+        result: SuspicionResult = await scorer.score(
+            text,
+            bot=context.bot,
+            username=user.username or "unknown",
+            is_new_request=is_new_request,
+        )
+    else:
+        result = await score_message(user_id=user_id, text=text)
 
     # Persist on context for downstream handlers
     if context.user_data is not None:
         context.user_data[SECURITY_KEY] = result
 
-    if result.is_suspicious:
+    if result.action == "BLOCK":
         log.warning(
             "message_quarantined",
             user_id=user_id,
@@ -145,6 +168,18 @@ async def security_middleware(
                 QUARANTINE_MSG.format(score=result.score),
                 parse_mode="Markdown",
             )
+        # Cancel any active request session
+        session_id = context.user_data.get("session_id") if context.user_data else None
+        if session_id:
+            try:
+                from bot.db.repository import cancel_session
+                asyncio.create_task(cancel_session(session_id))
+            except Exception:
+                pass
+        if context.user_data:
+            context.user_data.pop("slot_machine", None)
+            context.user_data.pop("session_id", None)
+
         # Log to DB (fire-and-forget)
         asyncio.create_task(_log_quarantine(result))
         # Halt the handler chain

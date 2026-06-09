@@ -1,32 +1,31 @@
 """
 bot/handlers/conversation.py
 ─────────────────────────────────────────────────────────────────────────────
-MUGEN AI — Stage 2: PTB ConversationHandler
+MUGEN AI — Stage 6: Production ConversationHandler
 ══════════════════════════════════════════════════════════════════════════════
 
-Implements a python-telegram-bot v20 ConversationHandler for the full
-/request → slot collection → confirm → decision flow.
+PTB states
+──────────
+  SLOT_COLLECT   Filling slots one-by-one via SlotMachine
+  CONFIRMING     Summary shown, waiting for yes / no
 
-States
-──────
-  SLOT_COLLECT   — bot is filling slots one-by-one via SlotMachine
-  CONFIRMING     — summary shown, waiting for yes/no
-  (FROZEN/DONE are terminal; ConversationHandler.END is returned)
+Edge cases handled (Stage 6)
+─────────────────────────────
+  • Mid-conversation /cancel        → graceful DB cancel + friendly message
+  • 10-minute timeout               → auto-cancel with friendly timeout notice
+  • Sticker sent during collection  → polite "text only" nudge, stay in state
+  • Photo / video / document sent   → same nudge pattern
+  • Unknown / empty message         → safe fallback, no crash
+  • Session lost (user_data reset)  → "session lost" message + END
+  • FROZEN session double-gate      → block with freeze message + END
+  • Any other command mid-flow      → treated as /cancel (PTB fallback rule)
 
-Why use ConversationHandler here?
-──────────────────────────────────
-  The SlotMachine already tracks state internally, but PTB's
-  ConversationHandler provides:
-    • Clean conversation lifecycle (timeout, per-user state isolation)
-    • Fallback on unexpected messages (/cancel, errors)
-    • Automatic END when the session terminates (frozen or done)
-
-Security guarantee
-──────────────────
-  security_middleware (group -999) still runs on EVERY message —
-  the ConversationHandler does not bypass it.
-  An additional check inside each handler verifies the session hasn't
-  been frozen by the NLP layer (double-gate pattern).
+Security guarantees
+────────────────────
+  • security_middleware (group -999) runs on EVERY update before this handler.
+  • SuspicionScorer instance is stored per-session in user_data and
+    accumulates points across the conversation.
+  • inject_risk=high from the NLP layer → machine.frozen → END.
 """
 
 from __future__ import annotations
@@ -47,14 +46,14 @@ from bot.slots.state import ConversationState, SlotMachine
 log = structlog.get_logger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ConversationHandler state keys (integers, as PTB requires)
+# PTB conversation state keys
 # ─────────────────────────────────────────────────────────────────────────────
 
 SLOT_COLLECT = 0
 CONFIRMING   = 1
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Helper
+# Helpers
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _get_machine(context: ContextTypes.DEFAULT_TYPE) -> SlotMachine | None:
@@ -66,6 +65,30 @@ def _set_machine(context: ContextTypes.DEFAULT_TYPE, machine: SlotMachine) -> No
         context.user_data["slot_machine"] = machine
 
 
+async def _safe_reply(update: Update, text: str) -> None:
+    """Reply helper that silently swallows errors (e.g. message deleted)."""
+    try:
+        if update.effective_message:
+            await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    except Exception:
+        pass
+
+
+async def _do_cancel(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
+    """Shared cancel teardown: cancel DB session + clear user_data."""
+    from bot.db.repository import cancel_session
+    session_id = (context.user_data or {}).get("session_id")
+    if session_id:
+        try:
+            await cancel_session(session_id=session_id)
+        except Exception:
+            pass
+    if context.user_data:
+        context.user_data.pop("slot_machine", None)
+        context.user_data.pop("session_id", None)
+    log.info("session_cancelled", user_id=user_id, session_id=session_id)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Entry point — /request
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,28 +97,83 @@ async def conv_start_request(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """
-    Entry point for the /request ConversationHandler.
+    /request entry point.
     Creates a fresh SlotMachine and sends the first slot prompt.
+    If allow_reentry=True fires while a session is already open, it
+    cleanly cancels the old session first.
     """
     from bot.db.repository import upsert_session
 
-    user = update.effective_user
+    user    = update.effective_user
     user_id = user.id
 
-    # Create a DB session
+    # Clean up any abandoned session
+    old_session = (context.user_data or {}).get("session_id")
+    if old_session:
+        await _do_cancel(context, user_id)
+
     session_id = await upsert_session(user_id=user_id, state=ConversationState.COLLECTING)
-    machine = SlotMachine(user_id=user_id, session_id=session_id)
+    machine    = SlotMachine(user_id=user_id, session_id=session_id)
     _set_machine(context, machine)
 
     if context.user_data is not None:
         context.user_data["session_id"] = session_id
 
     opening = machine.get_opening_prompt()
-    await update.message.reply_text(
-        f"📋 *New Asset Request* — Let's get started!\n\n{opening}",
-        parse_mode=ParseMode.MARKDOWN,
+    await _safe_reply(
+        update,
+        f"📋 *New Asset Request* — Let's get started\\!\n\n{opening}",
     )
     log.info("conv_request_started", user_id=user_id, session_id=session_id)
+    return SLOT_COLLECT
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Media interruption handler (stickers, photos, video, voice, etc.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+async def conv_media_interrupt(
+    update: Update, context: ContextTypes.DEFAULT_TYPE
+) -> int:
+    """
+    Gracefully handle non-text messages (stickers, images, audio, etc.)
+    sent during slot collection. Nudges the user back to text input
+    without advancing or resetting the slot state.
+    """
+    msg = update.effective_message
+
+    # Detect what was sent
+    if msg.sticker:
+        label = "a sticker"
+        extra = " 😄"
+    elif msg.photo:
+        label = "a photo"
+        extra = ""
+    elif msg.video:
+        label = "a video"
+        extra = ""
+    elif msg.voice or msg.audio:
+        label = "a voice/audio message"
+        extra = ""
+    elif msg.document:
+        label = "a document"
+        extra = " _(use /upload_rulebook for PDFs)_"
+    else:
+        label = "that"
+        extra = ""
+
+    machine = _get_machine(context)
+    current_slot = machine.active_slot if machine else None
+    slot_hint = f"\n\n*Current question:* _{machine.get_current_prompt()}_" if machine and current_slot else ""
+
+    await _safe_reply(
+        update,
+        f"📝 I received {label}{extra}, but I need a *text reply* to continue your request.{slot_hint}",
+    )
+
+    # Return to the same state we were in
+    if machine and machine.state == ConversationState.CONFIRMING:
+        return CONFIRMING
     return SLOT_COLLECT
 
 
@@ -107,42 +185,47 @@ async def conv_collect_slot(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """
-    Receives user text, feeds it to the SlotMachine, sends back the response.
-    Transitions:
-      • Still collecting → stay in SLOT_COLLECT
-      • Machine is now in CONFIRMING → move to CONFIRMING state
-      • Machine is FROZEN or DONE → END conversation
+    Receives user text → feeds to SlotMachine → sends response.
+    Handles:
+      • Empty / whitespace input → re-prompt gently
+      • machine is None (session lost) → END
+      • machine.frozen (injection detected) → END
+      • machine.done → END
+      • machine transitions to CONFIRMING → CONFIRMING state
     """
     machine = _get_machine(context)
+
     if machine is None:
-        await update.message.reply_text(
-            "❓ Session lost. Please use /request to start over.",
-            parse_mode=ParseMode.MARKDOWN,
+        await _safe_reply(
+            update,
+            "❓ Your session was lost\\. Use /request to start over\\.",
         )
         return ConversationHandler.END
 
-    # Double-gate: check if security middleware already froze this machine
+    # Double-gate: NLP layer may have already frozen the machine
     if machine.frozen:
-        await update.message.reply_text(
-            "🔒 This session is frozen. Use /request to start a new one.",
-            parse_mode=ParseMode.MARKDOWN,
+        await _safe_reply(
+            update,
+            "🔒 This session is permanently frozen\\. Use /request to start a new one\\.",
         )
         return ConversationHandler.END
 
-    text = update.message.text or ""
+    text = (update.message.text or "").strip()
+    if not text:
+        await _safe_reply(update, "💬 Please type a response to continue\\.")
+        return SLOT_COLLECT
+
     response = await machine.process(text)
+    await _safe_reply(update, response)
 
-    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
-
-    if machine.frozen or machine.done:
-        log.info(
-            "conv_terminated",
-            user_id=update.effective_user.id,
-            reason="frozen" if machine.frozen else "done",
-        )
+    if machine.frozen:
+        log.info("conv_frozen", user_id=update.effective_user.id)
         return ConversationHandler.END
 
-    # Check if machine transitioned to CONFIRMING
+    if machine.done:
+        log.info("conv_done", user_id=update.effective_user.id)
+        return ConversationHandler.END
+
     if machine.state == ConversationState.CONFIRMING:
         return CONFIRMING
 
@@ -157,23 +240,28 @@ async def conv_confirm(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
     """
-    Handles yes/no confirmation. Delegates fully to SlotMachine._confirm().
-    On yes → DECIDING → DONE → END.
-    On no  → back to SLOT_COLLECT.
+    Handles yes / no confirmation reply.
+      yes → decision engine → DONE → END
+      no  → reset to COLLECTING → SLOT_COLLECT
     """
     machine = _get_machine(context)
     if machine is None:
         return ConversationHandler.END
 
-    text = update.message.text or ""
-    response = await machine.process(text)
+    text = (update.message.text or "").strip()
+    if not text:
+        await _safe_reply(
+            update,
+            "💬 Please reply *yes* to submit or *no* to restart\\.",
+        )
+        return CONFIRMING
 
-    await update.message.reply_text(response, parse_mode=ParseMode.MARKDOWN)
+    response = await machine.process(text)
+    await _safe_reply(update, response)
 
     if machine.frozen or machine.done:
         return ConversationHandler.END
 
-    # "No" resets machine back to COLLECTING
     if machine.state == ConversationState.COLLECTING:
         return SLOT_COLLECT
 
@@ -181,47 +269,47 @@ async def conv_confirm(
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Cancel fallback (available in any state)
+# /cancel fallback — reachable from any state
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def conv_cancel(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    """Global /cancel fallback — reachable from any conversation state."""
-    from bot.db.repository import cancel_session
-
+    """
+    Mid-conversation /cancel (also catches any other command used mid-flow).
+    Gracefully cancels DB session and clears user_data.
+    """
     user = update.effective_user
-    session_id = (context.user_data or {}).get("session_id")
+    await _do_cancel(context, user.id)
 
-    if session_id:
-        await cancel_session(session_id=session_id)
-
-    if context.user_data:
-        context.user_data.pop("slot_machine", None)
-        context.user_data.pop("session_id", None)
-
-    await update.message.reply_text(
-        "🚫 *Request cancelled.*\n\nUse /request whenever you're ready to try again.",
-        parse_mode=ParseMode.MARKDOWN,
+    await _safe_reply(
+        update,
+        "🚫 *Request cancelled\\.* \\— No worries\\!\n\nUse /request whenever you're ready to try again\\.",
     )
-    log.info("conv_cancelled", user_id=user.id, session_id=session_id)
+    log.info("conv_cancelled", user_id=user.id)
     return ConversationHandler.END
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Timeout fallback
+# Timeout handler
 # ─────────────────────────────────────────────────────────────────────────────
 
 async def conv_timeout(
     update: Update, context: ContextTypes.DEFAULT_TYPE
 ) -> int:
-    """Called when the conversation times out (no message for 10 minutes)."""
-    if update.effective_message:
-        await update.effective_message.reply_text(
-            "⏰ *Session timed out* (10 minutes of inactivity).\n\n"
-            "Use /request to start a new asset request.",
-            parse_mode=ParseMode.MARKDOWN,
-        )
+    """
+    Called by PTB when the conversation has been idle for 10 minutes.
+    Auto-cancels the DB session so it doesn't stay open forever.
+    """
+    user_id = update.effective_user.id if update.effective_user else 0
+    await _do_cancel(context, user_id)
+
+    await _safe_reply(
+        update,
+        "⏰ *Session timed out* \\(10 minutes of inactivity\\)\\.\n\n"
+        "Your in\\-progress request was discarded\\. Use /request to start a new one\\.",
+    )
+    log.info("conv_timeout", user_id=user_id)
     return ConversationHandler.END
 
 
@@ -231,37 +319,54 @@ async def conv_timeout(
 
 def build_request_conversation() -> ConversationHandler:
     """
-    Build and return the fully configured PTB ConversationHandler.
-    Register this with app.add_handler() in main.py.
+    Build the fully configured PTB ConversationHandler.
+    Registered in main.py BEFORE standalone command handlers.
     """
+    _media_filter = (
+        filters.PHOTO
+        | filters.VIDEO
+        | filters.Sticker.ALL
+        | filters.VOICE
+        | filters.AUDIO
+        | filters.Document.ALL
+        | filters.ANIMATION
+    )
+
     return ConversationHandler(
         entry_points=[
             CommandHandler("request", conv_start_request),
         ],
         states={
             SLOT_COLLECT: [
+                # Text input → slot collection
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND,
                     conv_collect_slot,
                 ),
+                # Media interruption → gentle nudge, stay in state
+                MessageHandler(_media_filter, conv_media_interrupt),
             ],
             CONFIRMING: [
+                # Text confirmation → yes / no
                 MessageHandler(
                     filters.TEXT & ~filters.COMMAND,
                     conv_confirm,
                 ),
+                # Media in confirmation state → same nudge
+                MessageHandler(_media_filter, conv_media_interrupt),
             ],
             ConversationHandler.TIMEOUT: [
                 MessageHandler(filters.ALL, conv_timeout),
             ],
         },
         fallbacks=[
+            # /cancel from any state
             CommandHandler("cancel", conv_cancel),
-            # Any other command in mid-conversation → soft cancel
+            # Any other command mid-conversation → treated as cancel
             MessageHandler(filters.COMMAND, conv_cancel),
         ],
-        conversation_timeout=600,           # 10 minutes
-        allow_reentry=True,                 # /request mid-conversation restarts
+        conversation_timeout=600,       # 10 minutes
+        allow_reentry=True,             # /request mid-conv restarts cleanly
         name="asset_request_conversation",
         persistent=False,
     )
