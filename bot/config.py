@@ -1,8 +1,7 @@
 """
 bot/config.py
 ─────────────────────────────────────────────────────────────────────────────
-Centralised, validated configuration powered by pydantic-settings.
-All settings are read from environment variables (or a .env file).
+MUGEN AI — SD-05 Simplified Configuration
 """
 
 from __future__ import annotations
@@ -29,24 +28,11 @@ class Settings(BaseSettings):
         "", description="Comma-separated Telegram user IDs with admin rights"
     )
 
-    # ── Groq / LLM ───────────────────────────────────────────────────────────
+    # ── Groq / LLM (used for slot extraction only) ───────────────────────────
     groq_api_key: str = Field(..., description="Groq cloud API key")
     groq_model: str = Field(
         "llama-3.3-70b-versatile", description="Groq model identifier"
     )
-
-    # ── Security ──────────────────────────────────────────────────────────────
-    suspicion_threshold: float = Field(
-        0.55,
-        ge=0.0,
-        le=1.0,
-        description="Score above which a message is quarantined",
-    )
-
-    # ── RAG ───────────────────────────────────────────────────────────────────
-    rag_top_k: int = Field(4, ge=1, le=20)
-    chroma_persist_dir: Path = Field(Path("./chroma_store"))
-    rulebooks_dir: Path = Field(Path("./rulebooks"))
 
     # ── Database ──────────────────────────────────────────────────────────────
     db_path: Path = Field(Path("./data/mugen.db"))
@@ -54,7 +40,6 @@ class Settings(BaseSettings):
     # ── Logging ───────────────────────────────────────────────────────────────
     log_level: str = Field("INFO")
 
-    # ── Derived ───────────────────────────────────────────────────────────────
     @field_validator("admin_user_ids", mode="before")
     @classmethod
     def _coerce_admins(cls, v: object) -> str:
@@ -62,7 +47,6 @@ class Settings(BaseSettings):
 
     @property
     def admin_ids(self) -> FrozenSet[int]:
-        """Parse comma-separated admin IDs into a frozenset of ints."""
         if not self.admin_user_ids.strip():
             return frozenset()
         return frozenset(
@@ -74,5 +58,4 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Return a cached singleton Settings instance."""
     return Settings()

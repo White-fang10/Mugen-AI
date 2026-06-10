@@ -1,10 +1,11 @@
 # ─────────────────────────────────────────────────────────────────────────────
-# MUGEN AI — Dockerfile (Railway / Docker deployment ready)
+# MUGEN AI — SD-05 Simplified Dockerfile
+# Telegram bot only. No admin panel. No ChromaDB. No heavy ML models.
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM python:3.11-slim
 
-# Prevent .pyc files and enable unbuffered stdout (critical for logging)
+# Prevent .pyc files and enable unbuffered stdout
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -12,39 +13,23 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# ── System dependencies ───────────────────────────────────────────────────────
-# libmupdf and mesa libraries are required by PyMuPDF
-RUN apt-get update && apt-get install -y --no-install-recommends \
-        build-essential \
-        libmupdf-dev \
-        mupdf-tools \
-        libglib2.0-0 \
-        libgomp1 \
-    && rm -rf /var/lib/apt/lists/*
-
-# ── Python dependencies ───────────────────────────────────────────────────────
+# ── Python dependencies (much lighter now) ────────────────────────────────────
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
-
-# Pre-download the sentence-transformer model at build time (avoids cold-start)
-RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
 
 # ── Application code ──────────────────────────────────────────────────────────
 COPY . .
 
-# ── Persistent volumes ────────────────────────────────────────────────────────
-VOLUME ["/app/chroma_store", "/app/data", "/app/rulebooks"]
+# ── Ensure data directory exists for SQLite ───────────────────────────────────
+RUN mkdir -p /app/data
 
 # ── Non-root user (security hardening) ───────────────────────────────────────
 RUN useradd -m -u 1001 mugen && chown -R mugen:mugen /app
 USER mugen
 
 # ── Healthcheck ───────────────────────────────────────────────────────────────
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD python -c "import bot.config; bot.config.get_settings()" || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD python -c "from bot.config import get_settings; get_settings()" || exit 1
 
-# ── Entrypoint ────────────────────────────────────────────────────────────────
-COPY --chown=mugen:mugen start.sh /app/start.sh
-RUN chmod +x /app/start.sh
-
-CMD ["/app/start.sh"]
+# ── Run the bot directly ──────────────────────────────────────────────────────
+CMD ["python", "-m", "bot.main"]

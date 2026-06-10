@@ -276,45 +276,48 @@ class SlotMachine:
         )
 
     async def _run_decision(self) -> str:
-        """Call the Stage 4 decision engine and return a formatted verdict."""
+        """Run HRIS rule-based validation and save result to SQLite."""
         try:
             from bot.db.repository import append_audit, create_request, update_request_decision
-            from bot.validation.decision import evaluate_request
+            from bot.validation.hris_check import evaluate_request
 
+            # Save request to SQLite first
             req_id = await create_request(
                 session_id=self.session_id,
                 user_id=self.user_id,
                 slots=self.slots,
             )
 
-            # Stage 4: pass user_id so HRIS lookup is performed
-            verdict = await evaluate_request(self.slots, user_id=self.user_id)
+            # Instant HRIS rule-based decision (no LLM, no network call)
+            decision = evaluate_request(self.slots, user_id=self.user_id)
 
+            # Persist decision back to SQLite
             await update_request_decision(
                 request_id=req_id,
-                status=verdict.db_status,          # uppercase for DB
-                reason=verdict.reason,
-                policy_refs=verdict.policy_refs,
-                suggested_alternative=verdict.suggested_alternative,
-                employee_grade=verdict.employee_grade,
-                rag_signal=verdict.rag_signal,
+                status=decision.status,
+                reason=decision.reason,
+                policy_refs=decision.policy_refs,
+                suggested_alternative=None,
+                employee_grade=decision.employee_grade,
+                rag_signal="NONE",
             )
             await append_audit(
                 req_id,
                 actor="MUGEN_AI",
-                action=verdict.db_status,
-                detail=verdict.reason,
+                action=decision.status,
+                detail=decision.reason,
             )
 
             self.state = ConversationState.DONE
-
-            # Use the Verdict's own Telegram formatter (Stage 4)
-            return verdict.format_telegram(req_id)
+            return decision.format_telegram(req_id)
 
         except Exception as exc:
             log.error("decision_failed", error=str(exc), user_id=self.user_id)
             self.state = ConversationState.DONE
-            return "❌ Decision engine error. Request escalated for manual review."
+            return (
+                "❌ An error occurred while processing your request.\n"
+                "Please try again with /request."
+            )
 
     # ── Security helpers ──────────────────────────────────────────────────────
 
