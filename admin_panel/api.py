@@ -19,7 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
+from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -41,15 +43,76 @@ STATIC_DIR    = Path(__file__).parent / "static"
 
 log = structlog.get_logger(__name__)
 
+
+# ── Self-ping keepalive (prevents Render free-tier sleep) ─────────────────────
+
+async def _keepalive_loop() -> None:
+    """
+    Pings the service's own /api/ping endpoint every 14 minutes.
+    Render free tier spins down after 15 min of inactivity — this keeps
+    both the Admin Panel and the Telegram Bot alive 24/7.
+    """
+    await asyncio.sleep(60)  # wait 1 min after startup before first ping
+    service_url = os.environ.get("RENDER_EXTERNAL_URL", "")
+    if not service_url:
+        # Try to build the URL from RENDER_SERVICE_NAME
+        svc_name = os.environ.get("RENDER_SERVICE_NAME", "")
+        if svc_name:
+            service_url = f"https://{svc_name}.onrender.com"
+    if not service_url:
+        log.warning("keepalive_disabled", reason="RENDER_EXTERNAL_URL not set")
+        return
+
+    ping_url = service_url.rstrip("/") + "/api/ping"
+    log.info("keepalive_started", url=ping_url)
+
+    try:
+        import httpx
+    except ImportError:
+        log.warning("keepalive_disabled", reason="httpx not installed")
+        return
+
+    while True:
+        await asyncio.sleep(14 * 60)  # 14 minutes
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(ping_url)
+                log.info("keepalive_ping", status=resp.status_code)
+        except Exception as exc:
+            log.warning("keepalive_ping_failed", error=str(exc))
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI lifespan: start keepalive task on boot."""
+    task = asyncio.create_task(_keepalive_loop())
+    log.info("keepalive_task_started")
+    yield
+    task.cancel()
+    try:
+        await task
+    except asyncio.CancelledError:
+        pass
+
+
 # ── FastAPI app ───────────────────────────────────────────────────────────────
 app = FastAPI(
     title="MUGEN AI Admin Panel",
     description="Company admin interface for rulebook and HRIS management",
     version="1.0.0",
+    lifespan=lifespan,
 )
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+
+# ── /api/ping ─────────────────────────────────────────────────────────────────
+
+@app.get("/api/ping")
+async def ping():
+    """Ultra-lightweight keepalive endpoint."""
+    return {"pong": True}
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -72,13 +135,21 @@ async def api_status():
         [f.name for f in RULEBOOKS_DIR.glob("*.pdf")]
     ) if RULEBOOKS_DIR.exists() else []
 
-    # Try to get chroma indexed sources
+    # Try to get chroma indexed sources — with a hard timeout so we never
+    # block the status response (ChromaDB cold-start can take 30+ seconds).
     indexed_sources: List[str] = []
     try:
-        from bot.rag.retriever import get_indexed_sources
-        indexed_sources = get_indexed_sources()
+        def _get_sources() -> List[str]:
+            from bot.rag.retriever import get_indexed_sources
+            return get_indexed_sources()
+
+        loop = asyncio.get_event_loop()
+        indexed_sources = await asyncio.wait_for(
+            loop.run_in_executor(None, _get_sources),
+            timeout=3.0,  # max 3 s — return empty list if slower
+        )
     except Exception:
-        pass
+        pass  # ChromaDB not ready yet or timed out — that's fine
 
     return {
         "status": "ok",
