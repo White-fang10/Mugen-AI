@@ -200,9 +200,11 @@ def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None, user_
         return HrisDecision(
             status="APPROVED",
             reason=(
-                f"Request for '{asset_name}' costs ${cost:,.0f}, which is within "
-                f"{emp_name}'s approved budget of ${emp_budget:,} (Grade {emp_grade}). "
-                f"Justification: {justification}. Urgency: {urgency}."
+                f"The requested asset ('{asset_name}') has an estimated cost of ${cost:,.0f}. "
+                f"This falls within the allocated budget threshold of ${emp_budget:,} for {emp_name}'s "
+                f"current grade ({emp_grade}). The business justification ('{justification}') and "
+                f"urgency ({urgency}) have been logged. The request meets all automated HRIS compliance "
+                "criteria and is therefore approved."
             ),
             employee_name=emp_name,
             employee_grade=emp_grade,
@@ -217,9 +219,10 @@ def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None, user_
         return HrisDecision(
             status="FLAGGED",
             reason=(
-                f"Request for '{asset_name}' costs ${cost:,.0f}, which exceeds "
-                f"{emp_name}'s budget of ${emp_budget:,} (Grade {emp_grade}) by "
-                f"${cost - emp_budget:,.0f}. Requires manager approval before fulfilment."
+                f"The estimated cost of ${cost:,.0f} for the requested asset ('{asset_name}') "
+                f"exceeds {emp_name}'s standard budget allocation of ${emp_budget:,} (Grade {emp_grade}) "
+                f"by a margin of ${cost - emp_budget:,.0f}. In accordance with procurement policy, "
+                "this request has been flagged and requires manual managerial sign-off before fulfilment."
             ),
             employee_name=emp_name,
             employee_grade=emp_grade,
@@ -234,10 +237,11 @@ def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None, user_
         return HrisDecision(
             status="REJECTED",
             reason=(
-                f"Request for '{asset_name}' costs ${cost:,.0f}, which is more than "
-                f"twice {emp_name}'s approved budget of ${emp_budget:,} (Grade {emp_grade}). "
-                "This exceeds the maximum allowable overage. Please submit a formal "
-                "procurement request through the finance team."
+                f"The estimated cost of ${cost:,.0f} for the requested asset ('{asset_name}') "
+                f"is significantly beyond the maximum allowable overage for {emp_name}'s "
+                f"standard budget of ${emp_budget:,} (Grade {emp_grade}). The automated system "
+                "cannot approve this request. Please initiate a formal procurement request "
+                "through the central finance team for further assessment."
             ),
             employee_name=emp_name,
             employee_grade=emp_grade,
