@@ -31,5 +31,6 @@ USER mugen
 HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
     CMD python -c "from bot.config import get_settings; get_settings()" || exit 1
 
-# ── Run the bot directly ──────────────────────────────────────────────────────
-CMD ["python", "-m", "bot.main"]
+# ── Run the startup script ────────────────────────────────────────────────────
+RUN chmod +x /app/start.sh
+CMD ["/app/start.sh"]
