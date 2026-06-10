@@ -312,6 +312,7 @@ _llm = ChatGroq(
     model=settings.groq_model,
     temperature=0.05,
     max_tokens=700,
+    timeout=15.0,
 )
 
 _chain = _prompt | _llm | JsonOutputParser()

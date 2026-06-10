@@ -200,6 +200,7 @@ _llm = ChatGroq(
     model=settings.groq_model,
     temperature=0.0,       # deterministic extraction
     max_tokens=300,
+    timeout=10.0,
 )
 
 _chain = _prompt | _llm | JsonOutputParser()
