@@ -1,5 +1,5 @@
 services:
-  - type: worker
+  - type: web
     name: mugen-ai-bot
     runtime: docker
     dockerfilePath: ./Dockerfile
