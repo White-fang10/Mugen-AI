@@ -157,9 +157,9 @@ async def conv_collect_identity(
     if context.user_data is not None:
         context.user_data["user_identity"] = text
 
-    # Now start the real session
+    # We have identity, now start the slot machine
     session_id = await upsert_session(user_id=user_id, state=ConversationState.COLLECTING)
-    machine    = SlotMachine(user_id=user_id, session_id=session_id)
+    machine    = SlotMachine(user_id=user_id, session_id=session_id, user_identity=text)
     _set_machine(context, machine)
 
     if context.user_data is not None:

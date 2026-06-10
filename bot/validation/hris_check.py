@@ -92,22 +92,40 @@ def _load_hris() -> List[Dict[str, Any]]:
         return []
 
 
-def lookup_employee_by_telegram_id(telegram_id: int) -> Optional[Dict[str, Any]]:
+import re
+
+def lookup_employee_by_telegram_id(telegram_id: int, user_identity: str = "") -> Optional[Dict[str, Any]]:
     """
-    Look up an employee by Telegram user ID.
-    We store the mapping via a telegram_id field in hris.json,
-    OR fall back to matching by position (for demo: user IDs cycle through employees).
+    Look up an employee by the collected identity text (e.g. "Alice Johnson, EMP001").
+    Falls back to Telegram user ID, and then a default user for demo purposes.
     """
     employees = _load_hris()
-    # First: check if any employee has telegram_id field
+    
+    # 1. Search by employee_id found in the user_identity string
+    if user_identity:
+        match = re.search(r"EMP\d+", user_identity.upper())
+        if match:
+            emp_id = match.group(0)
+            for emp in employees:
+                if emp.get("employee_id") == emp_id:
+                    return emp
+        
+        # 1b. Search by name match in the user_identity string
+        identity_lower = user_identity.lower()
+        for emp in employees:
+            if emp.get("name", "").lower() in identity_lower:
+                return emp
+
+    # 2. Search by telegram_id field
     for emp in employees:
         if emp.get("telegram_id") == telegram_id:
             return emp
-    # Demo fallback: map any unknown Telegram ID to EMP004 (Pranesh)
-    # In production this would be an actual directory lookup
+
+    # 3. Demo fallback: map any unknown Telegram ID to EMP004 (Pranesh)
     for emp in employees:
         if emp.get("employee_id") == "EMP004":
             return emp
+            
     return employees[0] if employees else None
 
 
@@ -115,7 +133,7 @@ def lookup_employee_by_telegram_id(telegram_id: int) -> Optional[Dict[str, Any]]
 # Decision engine
 # ─────────────────────────────────────────────────────────────────────────────
 
-def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None) -> HrisDecision:
+def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None, user_identity: str = "") -> HrisDecision:
     """
     Rule-based decision engine. No LLM. Returns instantly.
 
@@ -133,10 +151,10 @@ def evaluate_request(slots: Dict[str, Any], user_id: Optional[int] = None) -> Hr
     cost_estimate = slots.get("cost_estimate")  # float or None
 
     # ── 1. Employee lookup ────────────────────────────────────────────────────
-    employee = lookup_employee_by_telegram_id(user_id) if user_id else None
+    employee = lookup_employee_by_telegram_id(user_id, user_identity) if user_id else None
 
     if employee is None:
-        log.warning("hris_employee_not_found", user_id=user_id)
+        log.warning("hris_employee_not_found", user_id=user_id, identity=user_identity)
         return HrisDecision(
             status="FLAGGED",
             reason=(

@@ -121,10 +121,11 @@ class SlotMachine:
             # Clean up, end conversation
     """
 
-    def __init__(self, user_id: int, session_id: int = 0) -> None:
-        self.user_id    = user_id
-        self.session_id = session_id
-        self.state      = ConversationState.COLLECTING
+    def __init__(self, user_id: int, session_id: int = 0, user_identity: str = "") -> None:
+        self.user_id       = user_id
+        self.session_id    = session_id
+        self.user_identity = user_identity
+        self.state         = ConversationState.COLLECTING
         self.slots: Dict[str, Any] = {}
         # Retry tracker: how many times each slot has been re-asked
         self._retries: Dict[str, int] = {s: 0 for s in _SLOT_NAMES}
@@ -289,7 +290,7 @@ class SlotMachine:
             )
 
             # Instant HRIS rule-based decision (no LLM, no network call)
-            decision = evaluate_request(self.slots, user_id=self.user_id)
+            decision = evaluate_request(self.slots, user_id=self.user_id, user_identity=self.user_identity)
 
             # Persist decision back to SQLite
             await update_request_decision(
