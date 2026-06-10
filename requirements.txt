@@ -1,5 +1,5 @@
 # ─── Core Runtime
-python-telegram-bot==21.0.1
+python-telegram-bot[callback-data]==21.0.1
 aiosqlite==0.20.0
 pydantic==2.7.1
 pydantic-settings==2.3.0        
