@@ -67,12 +67,18 @@ def _set_machine(context: ContextTypes.DEFAULT_TYPE, machine: SlotMachine) -> No
 
 
 async def _safe_reply(update: Update, text: str) -> None:
-    """Reply helper that silently swallows errors (e.g. message deleted)."""
+    """Reply helper that falls back to plain text if Markdown parsing fails."""
+    if not update.effective_message:
+        return
     try:
-        if update.effective_message:
-            await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
-    except Exception:
-        pass
+        await update.effective_message.reply_text(text, parse_mode=ParseMode.MARKDOWN)
+    except Exception as exc:
+        log.warning("markdown_reply_failed", error=str(exc))
+        try:
+            # Fall back to plain text so the message is not lost
+            await update.effective_message.reply_text(text)
+        except Exception:
+            pass
 
 
 async def _do_cancel(context: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
