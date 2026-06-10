@@ -381,11 +381,11 @@ async def get_all_requests(
     Return asset requests from the SQLite DB.
     Optional ?status=APPROVED|REJECTED|FLAGGED|PENDING filter.
     """
-    from bot.config import get_settings
-    settings = get_settings()
-    db_path  = str(settings.db_path)
-
     try:
+        from bot.config import get_settings
+        settings = get_settings()
+        db_path  = str(settings.db_path)
+
         async with aiosqlite.connect(db_path) as db:
             db.row_factory = aiosqlite.Row
             # Try to include user_identity; fall back gracefully if column absent
