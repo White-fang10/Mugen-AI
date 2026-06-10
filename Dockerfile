@@ -44,4 +44,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD python -c "import bot.config; bot.config.get_settings()" || exit 1
 
 # ── Entrypoint ────────────────────────────────────────────────────────────────
-CMD ["python", "-m", "bot.main"]
+COPY --chown=mugen:mugen start.sh /app/start.sh
+RUN chmod +x /app/start.sh
+
+CMD ["/app/start.sh"]
